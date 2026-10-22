@@ -39,6 +39,14 @@ android {
         }
     }
 }
+// Compose UI tests need ui-test-manifest's activity, which only the debug
+// variant merges; the release variant runs the same tests, so skip it.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) {
+        (it as com.android.build.api.variant.HasHostTestsBuilder)
+            .hostTests.getValue(com.android.build.api.variant.HostTestBuilder.UNIT_TEST_TYPE).enable = false
+    }
+}
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 dependencies {
     implementation(project(":core"))
