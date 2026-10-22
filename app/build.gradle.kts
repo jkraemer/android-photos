@@ -45,4 +45,9 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.activity.compose)
     implementation(libs.compose.foundation)
+    implementation(libs.coroutines.android)
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.coroutines.test)
 }
