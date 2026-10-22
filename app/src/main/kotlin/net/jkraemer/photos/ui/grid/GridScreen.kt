@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -24,12 +25,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -71,6 +74,9 @@ private class GridModel(
     val followBottom: Boolean,
 )
 
+/** The item under a pinch and its row's offset in the viewport, to restore after the level changes. */
+private class PinchFocus(val itemIndex: Int, val offsetY: Int)
+
 /**
  * The camera roll as a vertical timeline, oldest top-left and newest
  * bottom-right, at [level]. Opens at [anchor] and reports its position back
@@ -83,11 +89,13 @@ fun GridScreen(
     labels: DateLabels,
     anchor: GridAnchor,
     onAnchorChange: (GridAnchor) -> Unit,
+    onLevelChange: (ZoomLevel) -> Unit,
     onOpen: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
     val currentAnchor by rememberUpdatedState(anchor)
+    val pinchFocus = remember { mutableStateOf<PinchFocus?>(null) }
     // Building entries walks the whole timeline, so it stays off the main thread.
     val model by produceState<GridModel?>(null, items, level, labels) {
         val previous = value
@@ -98,6 +106,10 @@ fun GridScreen(
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val current = model ?: return@BoxWithConstraints
+        // Layout follows the model's level, not the requested one: switching
+        // columns before the new entries exist would scroll the old grid and
+        // lose the position the new model is about to restore.
+        val level = current.level
         if (current.items.isEmpty()) {
             Text("No photos yet", Modifier.align(Alignment.Center).testTag("empty"), color = Color.Gray)
             return@BoxWithConstraints
@@ -106,7 +118,17 @@ fun GridScreen(
         val cellPx = with(LocalDensity.current) { (maxWidth / columns).roundToPx() }
         val thumbnailPx = thumbnailSizePx(cellPx)
 
-        LaunchedEffect(current) { positionGrid(gridState, current, currentAnchor) }
+        LaunchedEffect(current) {
+            positionGrid(gridState, current, currentAnchor, pinchFocus.value)
+            pinchFocus.value = null
+        }
+        val onPinchStep by rememberUpdatedState { zoomIn: Boolean, focal: Offset ->
+            val next = if (zoomIn) level.closer() else level.farther()
+            if (next != level) {
+                pinchFocus.value = cellUnder(gridState, current, focal)
+                onLevelChange(next)
+            }
+        }
 
         val newestVisible by remember(current) { derivedStateOf { newestVisibleItem(gridState, current) } }
         val reportAnchor by rememberUpdatedState(onAnchorChange)
@@ -124,7 +146,10 @@ fun GridScreen(
             contentPadding = WindowInsets.systemBars.asPaddingValues(),
             horizontalArrangement = Arrangement.spacedBy(level.gapDp.dp),
             verticalArrangement = Arrangement.spacedBy(level.gapDp.dp),
-            modifier = Modifier.fillMaxSize().testTag("grid"),
+            modifier = Modifier
+                .fillMaxSize()
+                .pinchToZoom { zoomIn, focal -> onPinchStep(zoomIn, focal) }
+                .testTag("grid"),
         ) {
             val entries = current.grid.entries
             items(
@@ -204,16 +229,39 @@ private fun Cell(item: MediaItem, level: ZoomLevel, thumbnailPx: Int, onClick: (
     }
 }
 
-/** Puts the grid where [model] says: following the bottom, or at the anchored item on first show. */
-private suspend fun positionGrid(state: LazyGridState, model: GridModel, anchor: GridAnchor) {
+/**
+ * Puts the grid where [model] says: following the bottom, back under the
+ * fingers after a pinch, or at the anchored item on first show.
+ */
+private suspend fun positionGrid(state: LazyGridState, model: GridModel, anchor: GridAnchor, focus: PinchFocus?) {
     val entries = model.grid.entries
     if (model.followBottom) {
         state.scrollToItem(entries.lastIndex)
         return
     }
+    if (focus != null && focus.itemIndex < model.items.size) {
+        state.scrollToItem(model.grid.entryIndexOf(focus.itemIndex))
+        state.scrollBy(-focus.offsetY.toFloat())
+        return
+    }
     if (!model.isFirst) return
     val anchorIndex = model.items.indexOfFirst { it.id == anchor.itemId }
     if (anchorIndex >= 0) state.scrollToItem(model.grid.entryIndexOf(anchorIndex))
+}
+
+/** The laid-out cell nearest to [focal] (in grid coordinates), with its row offset. */
+private fun cellUnder(state: LazyGridState, model: GridModel, focal: Offset): PinchFocus? {
+    val layout = state.layoutInfo
+    return layout.visibleItemsInfo
+        .mapNotNull { info ->
+            val cell = model.grid.entries.getOrNull(info.index) as? GridEntry.Cell ?: return@mapNotNull null
+            // Item offsets start after the top content padding; the pointer's do not.
+            val top = info.offset.y - layout.viewportStartOffset
+            val centre = Offset(info.offset.x + info.size.width / 2f, top + info.size.height / 2f)
+            Triple(cell.itemIndex, info.offset.y, (centre - focal).getDistanceSquared())
+        }
+        .minByOrNull { it.third }
+        ?.let { (itemIndex, offsetY, _) -> PinchFocus(itemIndex, offsetY) }
 }
 
 private fun newestVisibleItem(state: LazyGridState, model: GridModel): Int? {

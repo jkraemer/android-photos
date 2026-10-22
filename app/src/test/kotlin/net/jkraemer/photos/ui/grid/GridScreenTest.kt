@@ -1,15 +1,23 @@
 package net.jkraemer.photos.ui.grid
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.pinch
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.assertTextEquals
 import java.time.Duration
 import java.time.Instant
@@ -51,7 +59,7 @@ class GridScreenTest {
         onOpen: (Long) -> Unit = {},
     ) {
         compose.setContent {
-            GridScreen(items, level, labels, anchor, onAnchorChange = {}, onOpen = onOpen)
+            GridScreen(items, level, labels, anchor, onAnchorChange = {}, onLevelChange = {}, onOpen = onOpen)
         }
         awaitGrid()
     }
@@ -97,7 +105,7 @@ class GridScreenTest {
 
     @Test fun `stays at the bottom when a new photo arrives`() {
         var items by mutableStateOf(daily(200))
-        compose.setContent { GridScreen(items, ZoomLevel.LARGE, labels, bottom, onAnchorChange = {}, onOpen = {}) }
+        compose.setContent { GridScreen(items, ZoomLevel.LARGE, labels, bottom, onAnchorChange = {}, onLevelChange = {}, onOpen = {}) }
         awaitGrid()
         // Ten new photos start rows below the old bottom edge.
         items = items + (201L..210L).map { item(it, newest.plusSeconds(it)) }
@@ -107,7 +115,7 @@ class GridScreenTest {
 
     @Test fun `keeps position when scrolled up and a photo arrives`() {
         var items by mutableStateOf(daily(200))
-        compose.setContent { GridScreen(items, ZoomLevel.LARGE, labels, bottom, onAnchorChange = {}, onOpen = {}) }
+        compose.setContent { GridScreen(items, ZoomLevel.LARGE, labels, bottom, onAnchorChange = {}, onLevelChange = {}, onOpen = {}) }
         awaitGrid()
         compose.onNodeWithTag("grid").performScrollToIndex(0)
         items = items + item(201, newest.plusSeconds(60))
@@ -144,5 +152,108 @@ class GridScreenTest {
         show(daily(20), onOpen = { opened = it })
         compose.onNodeWithTag("cell-20").performClick()
         assertEquals(20L, opened)
+    }
+
+    /** Hosts the grid with its level in state, the way the activity does. */
+    private fun showZoomable(items: List<MediaItem>, start: ZoomLevel, anchor: GridAnchor = bottom): () -> ZoomLevel {
+        var level by mutableStateOf(start)
+        compose.setContent {
+            GridScreen(items, level, labels, anchor, onAnchorChange = {}, onLevelChange = { level = it }, onOpen = {})
+        }
+        awaitGrid()
+        return { level }
+    }
+
+    private fun pinch(around: Offset, from: Float, to: Float) =
+        compose.onNodeWithTag("grid").performTouchInput {
+            pinch(
+                start0 = around - Offset(from, 0f), end0 = around - Offset(to, 0f),
+                start1 = around + Offset(from, 0f), end1 = around + Offset(to, 0f),
+                durationMillis = 400,
+            )
+        }
+
+    private fun centreOf(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.center
+
+    @Test fun `pinching in switches to the month label`() {
+        val level = showZoomable(daily(200), ZoomLevel.LARGE)
+        pinch(centreOf("grid"), from = 180f, to = 60f)
+        compose.waitForIdle()
+        assertEquals(ZoomLevel.MEDIUM, level())
+        compose.waitUntil(5_000) { compose.onAllNodes(hasText("October 2026")).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("floating-date").assertTextEquals("October 2026")
+    }
+
+    @Test fun `spreading at LARGE stays LARGE`() {
+        val level = showZoomable(daily(200), ZoomLevel.LARGE)
+        pinch(centreOf("grid"), from = 40f, to = 180f)
+        compose.waitForIdle()
+        assertEquals(ZoomLevel.LARGE, level())
+    }
+
+    @Test fun `pinch keeps the item under the fingers visible`() {
+        // At MEDIUM with item 100 in the top row, item 148 (middle column) sits
+        // ten rows down near the bottom edge; after spreading to LARGE it must
+        // still be on screen.
+        val level = showZoomable(daily(200), ZoomLevel.MEDIUM, GridAnchor(itemId = 100, pinnedToBottom = false))
+        val focus = centreOf("cell-148")
+        pinch(focus, from = 40f, to = 150f)
+        compose.waitForIdle()
+        assertEquals(ZoomLevel.LARGE, level())
+        awaitTag("cell-148")
+        compose.onNodeWithTag("cell-148").assertIsDisplayed()
+    }
+
+    @Test fun `pinch at the bottom stays at the bottom`() {
+        val level = showZoomable(daily(200), ZoomLevel.MEDIUM)
+        pinch(centreOf("grid"), from = 40f, to = 150f)
+        compose.waitForIdle()
+        assertEquals(ZoomLevel.LARGE, level())
+        compose.waitForIdle()
+        compose.onNodeWithTag("cell-200").assertIsDisplayed()
+    }
+
+    @Test fun `reports its position as the user scrolls`() {
+        val reports = mutableListOf<GridAnchor>()
+        compose.setContent {
+            GridScreen(daily(200), ZoomLevel.LARGE, labels, bottom, onAnchorChange = { reports += it }, onLevelChange = {}, onOpen = {})
+        }
+        awaitGrid()
+        compose.waitForIdle()
+        assertEquals(GridAnchor(itemId = 200, pinnedToBottom = true), reports.last())
+        compose.onNodeWithTag("grid").performScrollToIndex(0)
+        compose.waitForIdle()
+        val scrolled = reports.last()
+        assertEquals(false, scrolled.pinnedToBottom)
+        compose.onNodeWithTag("cell-${scrolled.itemId}").assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = "w892dp-h412dp")
+    fun `column change keeps the anchored item`() {
+        var width by mutableStateOf(412.dp)
+        compose.setContent {
+            Box(Modifier.width(width)) {
+                GridScreen(daily(200), ZoomLevel.LARGE, labels, GridAnchor(100, false), onAnchorChange = {}, onLevelChange = {}, onOpen = {})
+            }
+        }
+        awaitGrid()
+        compose.onNodeWithTag("cell-100").assertIsDisplayed()
+        width = 892.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag("cell-100").assertIsDisplayed()
+    }
+
+    @Test @Config(qualifiers = "w892dp-h412dp")
+    fun `column change at the bottom stays at the bottom`() {
+        var width by mutableStateOf(412.dp)
+        compose.setContent {
+            Box(Modifier.width(width)) {
+                GridScreen(daily(200), ZoomLevel.LARGE, labels, bottom, onAnchorChange = {}, onLevelChange = {}, onOpen = {})
+            }
+        }
+        awaitGrid()
+        width = 892.dp
+        compose.waitForIdle()
+        compose.onNodeWithTag("cell-200").assertIsDisplayed()
     }
 }

@@ -87,6 +87,7 @@ class MainActivity : ComponentActivity() {
             labels,
             anchor,
             onAnchorChange = viewModel::anchorGrid,
+            onLevelChange = viewModel::setZoomLevel,
             onOpen = viewModel::open,
         )
     }
