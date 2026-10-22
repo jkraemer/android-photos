@@ -9,7 +9,9 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,8 @@ import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
+import net.jkraemer.photos.media.shareIntent
+import net.jkraemer.photos.media.trashRequest
 import net.jkraemer.photos.ui.PermissionGate
 import net.jkraemer.photos.ui.detail.DetailActions
 import net.jkraemer.photos.ui.detail.DetailScreen
@@ -104,9 +108,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // A confirmed trash needs no handling here: the MediaStore observer emits
+    // the new timeline and the detail view moves on to the neighbour.
+    private val confirmTrash = registerForActivityResult(StartIntentSenderForResult()) {}
+
     private val detailActions = object : DetailActions {
-        override fun share(item: MediaItem) {}
-        override fun trash(item: MediaItem) {}
+        override fun share(item: MediaItem) {
+            startActivity(shareIntent(item))
+        }
+
+        override fun trash(item: MediaItem) {
+            confirmTrash.launch(IntentSenderRequest.Builder(trashRequest(contentResolver, item)).build())
+        }
     }
 
     override fun onResume() {

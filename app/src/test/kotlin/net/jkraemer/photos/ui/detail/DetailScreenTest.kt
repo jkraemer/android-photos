@@ -54,9 +54,17 @@ class DetailScreenTest {
 
     private var items by mutableStateOf(hourly)
 
-    private fun open(id: Long) {
+    /** Records which item each button passed; the screen's wiring is what is under test. */
+    private val shared = mutableListOf<Long>()
+    private val trashed = mutableListOf<Long>()
+    private val recordingActions = object : DetailActions {
+        override fun share(item: MediaItem) { shared += item.id }
+        override fun trash(item: MediaItem) { trashed += item.id }
+    }
+
+    private fun open(id: Long, actions: DetailActions = noActions) {
         compose.setContent {
-            DetailScreen(items, id, labels, onClose = { closed += it }, actions = noActions)
+            DetailScreen(items, id, labels, onClose = { closed += it }, actions = actions)
         }
         compose.waitForIdle()
     }
@@ -184,5 +192,19 @@ class DetailScreenTest {
         compose.onNodeWithTag("pager").performClick()
         compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithTag("strip-current").assertDoesNotExist()
+    }
+
+    @Test fun `share button shares the current item`() {
+        open(10, recordingActions)
+        compose.onNodeWithContentDescription("Share").performClick()
+        assertEquals(listOf(10L), shared)
+    }
+
+    @Test fun `delete button trashes the current item`() {
+        open(10, recordingActions)
+        compose.onNodeWithTag("pager").performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Delete").performClick()
+        assertEquals(listOf(9L), trashed)
     }
 }
