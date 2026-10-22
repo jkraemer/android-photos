@@ -10,6 +10,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.doubleClick
@@ -214,5 +215,20 @@ class DetailScreenTest {
         items = hourly + item(21, start.plusSeconds(3600 * 21), MediaKind.VIDEO, durationMs = 5_000)
         open(21)
         compose.onNodeWithTag("play").assertIsDisplayed()
+    }
+
+    @Test fun `removing the current item never blanks or shows the wrong item`() {
+        open(10)
+        compose.mainClock.autoAdvance = false
+        items = hourly.filter { it.id != 10L }
+        // The first frame may still show item 10 (it has not seen the new
+        // list yet); no frame may lose the pager or name another item.
+        val allowed = listOf(9L, 10L).map { id -> labels.timestamp(hourly.first { it.id == id }.takenAt) }
+        repeat(5) {
+            compose.mainClock.advanceTimeByFrame()
+            compose.onNodeWithTag("pager").assertExists()
+            compose.onNodeWithTag("timestamp").assert(hasText(allowed[0]) or hasText(allowed[1]))
+        }
+        showsItem(9)
     }
 }

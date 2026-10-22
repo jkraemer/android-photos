@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -98,20 +100,24 @@ fun DetailScreen(
     val latestItems by rememberUpdatedState(items)
 
     // The view follows its item by id: other apps (Immich freeing space, a
-    // file manager) can add or remove items while it is open.
-    var shownItems by remember { mutableStateOf(items) }
-    LaunchedEffect(items) {
-        val before = shownItems
-        shownItems = items
-        if (before === items) return@LaunchedEffect
-        val target = if (items.any { it.id == currentId }) currentId else neighbourAfterRemoval(before, currentId, items)
-        if (target == null) {
-            close(null)
-            return@LaunchedEffect
-        }
-        currentId = target
-        pagerState.scrollToPage(items.indexOfFirst { it.id == target })
+    // file manager) can add or remove items while it is open. The item to
+    // show is resolved during composition, so the frame that first sees the
+    // new list already shows the right item instead of a gap or a stranger.
+    val previousItems = remember { arrayOf(items) }
+    val shownId: Long? =
+        if (items.any { it.id == currentId }) currentId
+        else neighbourAfterRemoval(previousItems[0], currentId, items)
+    if (items !== previousItems[0] && shownId != null) {
+        pagerState.requestScrollToPage(items.indexOfFirst { it.id == shownId })
     }
+    SideEffect {
+        previousItems[0] = items
+        if (shownId != null) currentId = shownId
+    }
+    LaunchedEffect(shownId == null) {
+        if (shownId == null) close(null)
+    }
+    val latestShownId by rememberUpdatedState(shownId)
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.collect { page -> latestItems.getOrNull(page)?.let { currentId = it.id } }
     }
@@ -122,7 +128,12 @@ fun DetailScreen(
     BoxWithConstraints(modifier.fillMaxSize()) {
         // Read through latestItems in here: the pager's page count updates
         // before this subcomposition does, and must never outrun the list.
-        val current = latestItems.firstOrNull { it.id == currentId } ?: return@BoxWithConstraints
+        val current = latestItems.firstOrNull { it.id == latestShownId }
+        if (current == null) {
+            // Everything is gone; the view is closing.
+            Box(Modifier.fillMaxSize().background(Color.Black))
+            return@BoxWithConstraints
+        }
         var dragY by remember { mutableFloatStateOf(0f) }
         val heightPx = constraints.maxHeight.toFloat()
         val closeVelocityPx = with(LocalDensity.current) { CLOSE_VELOCITY.toPx() }
