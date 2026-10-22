@@ -16,8 +16,13 @@ class PermissionGateTest {
     @get:Rule val compose = createComposeRule()
     private val calls = mutableListOf<String>()
 
-    private fun show(access: MediaAccess) = compose.setContent {
-        PermissionGate(access, onRequest = { calls += "request" }, onOpenSettings = { calls += "settings" }) {
+    private fun show(access: MediaAccess, canRequest: Boolean = true) = compose.setContent {
+        PermissionGate(
+            access,
+            canRequest,
+            onRequest = { calls += "request" },
+            onOpenSettings = { calls += "settings" },
+        ) {
             Text("the grid")
         }
     }
@@ -38,6 +43,13 @@ class PermissionGateTest {
     @Test fun `partial access sends to settings`() {
         show(MediaAccess.PARTIAL)
         compose.onNodeWithText("the grid").assertDoesNotExist()
+        compose.onNodeWithText("Open settings").performClick()
+        assertEquals(listOf("settings"), calls)
+    }
+
+    @Test fun `no access after a permanent denial sends to settings`() {
+        show(MediaAccess.NONE, canRequest = false)
+        compose.onNodeWithText("Allow access").assertDoesNotExist()
         compose.onNodeWithText("Open settings").performClick()
         assertEquals(listOf("settings"), calls)
     }

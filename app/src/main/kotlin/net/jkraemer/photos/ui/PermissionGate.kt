@@ -16,12 +16,15 @@ import net.jkraemer.photos.core.MediaAccess
 
 /**
  * Shows [content] only with full media access. Without any access the button
- * asks for it; with partial access ("Select photos") Android no longer shows
- * the full prompt, so the button goes to the app's settings instead.
+ * asks for it while Android still shows the prompt ([canRequest]). With
+ * partial access ("Select photos"), or after the user denied it for good,
+ * Android no longer shows the full prompt, so the button goes to the app's
+ * settings instead.
  */
 @Composable
 fun PermissionGate(
     access: MediaAccess,
+    canRequest: Boolean,
     onRequest: () -> Unit,
     onOpenSettings: () -> Unit,
     content: @Composable () -> Unit,
@@ -40,7 +43,7 @@ fun PermissionGate(
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
         )
-        if (access == MediaAccess.NONE) {
+        if (access == MediaAccess.NONE && canRequest) {
             Button(onClick = onRequest) { Text("Allow access") }
         } else {
             Button(onClick = onOpenSettings) { Text("Open settings") }

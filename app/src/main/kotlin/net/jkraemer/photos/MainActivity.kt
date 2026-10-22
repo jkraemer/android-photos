@@ -48,7 +48,15 @@ import net.jkraemer.photos.ui.grid.GridScreen
 /** Composition root: wires the MediaStore repository and the permission gate. */
 class MainActivity : ComponentActivity() {
     private var access by mutableStateOf(MediaAccess.NONE)
-    private val requestAccess = registerForActivityResult(RequestMultiplePermissions()) { refreshAccess() }
+    private var canRequestAccess by mutableStateOf(true)
+    private val requestAccess = registerForActivityResult(RequestMultiplePermissions()) {
+        refreshAccess()
+        // After repeated denials Android answers at once without a dialog;
+        // the rationale flag is the only sign of it. Then only settings help.
+        canRequestAccess = access != MediaAccess.NONE ||
+            shouldShowRequestPermissionRationale(Manifest.permission.READ_MEDIA_IMAGES) ||
+            shouldShowRequestPermissionRationale(Manifest.permission.READ_MEDIA_VIDEO)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 Surface(Modifier.fillMaxSize()) {
                     PermissionGate(
                         access,
+                        canRequestAccess,
                         onRequest = { requestAccess.launch(MEDIA_PERMISSIONS) },
                         onOpenSettings = ::openAppSettings,
                     ) {
