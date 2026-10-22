@@ -60,6 +60,7 @@ import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.MediaItem
+import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.neighbourAfterRemoval
 import net.jkraemer.photos.media.contentUriOf
 
@@ -150,17 +151,21 @@ fun DetailScreen(
                 .testTag("pager"),
         ) { page ->
             val isCurrent = page == pagerState.settledPage
-            PhotoPage(
-                latestItems[page],
-                isCurrent,
-                onTap = { uiVisible = !uiVisible },
-                onZoomChange = { isZoomed ->
-                    if (isCurrent) {
-                        zoomed = isZoomed
-                        if (isZoomed) uiVisible = false
-                    }
-                },
-            )
+            val item = latestItems[page]
+            when (item.kind) {
+                MediaKind.IMAGE -> PhotoPage(
+                    item,
+                    isCurrent,
+                    onTap = { uiVisible = !uiVisible },
+                    onZoomChange = { isZoomed ->
+                        if (isCurrent) {
+                            zoomed = isZoomed
+                            if (isZoomed) uiVisible = false
+                        }
+                    },
+                )
+                MediaKind.VIDEO -> VideoPage(item, isCurrent, onTap = { uiVisible = !uiVisible })
+            }
         }
 
         if (uiVisible) {

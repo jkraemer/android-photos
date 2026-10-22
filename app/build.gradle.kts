@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.telephoto.zoomable.image.coil3)
     implementation(libs.compose.material.icons)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

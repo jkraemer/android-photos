@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -26,6 +27,7 @@ import java.time.ZoneId
 import java.util.Locale
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.MediaItem
+import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.item
 import net.jkraemer.photos.useFakeImages
 import org.junit.Assert.assertEquals
@@ -206,5 +208,11 @@ class DetailScreenTest {
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Delete").performClick()
         assertEquals(listOf(9L), trashed)
+    }
+
+    @Test fun `video items show a play button`() {
+        items = hourly + item(21, start.plusSeconds(3600 * 21), MediaKind.VIDEO, durationMs = 5_000)
+        open(21)
+        compose.onNodeWithTag("play").assertIsDisplayed()
     }
 }
