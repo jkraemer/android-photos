@@ -25,6 +25,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem as PlayerMediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -45,16 +50,36 @@ fun VideoPage(item: MediaItem, isCurrentPage: Boolean, onTap: () -> Unit) {
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) playing = false
     }
+    // Leaving the app (home, app switcher, screen off) only stops the
+    // activity; the composition survives, so playback has to end here.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) playing = false
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     BoxWithConstraints(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onTap)) {
         if (playing) {
             val context = LocalContext.current
             val player = remember {
-                ExoPlayer.Builder(context).build().apply {
-                    setMediaItem(PlayerMediaItem.fromUri(contentUriOf(item)))
-                    volume = 1f
-                    prepare()
-                    play()
-                }
+                ExoPlayer.Builder(context)
+                    // Takes audio focus, so a video pauses music instead of playing over it.
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(C.USAGE_MEDIA)
+                            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                            .build(),
+                        true,
+                    )
+                    .build()
+                    .apply {
+                        setMediaItem(PlayerMediaItem.fromUri(contentUriOf(item)))
+                        volume = 1f
+                        prepare()
+                        play()
+                    }
             }
             DisposableEffect(player) { onDispose { player.release() } }
             AndroidView(

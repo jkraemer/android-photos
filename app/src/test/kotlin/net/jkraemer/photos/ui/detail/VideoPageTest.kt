@@ -2,6 +2,7 @@ package net.jkraemer.photos.ui.detail
 
 import android.content.Context
 import android.os.IInterface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -9,6 +10,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.testing.TestLifecycleOwner
 import java.lang.reflect.Proxy
 import java.time.Instant
 import net.jkraemer.photos.core.MediaKind
@@ -26,11 +30,14 @@ class VideoPageTest {
     @get:Rule val compose = createComposeRule()
     private val video = item(5, Instant.parse("2026-10-22T12:00:00Z"), MediaKind.VIDEO, durationMs = 65_000)
     private var isCurrent by mutableStateOf(true)
+    private val lifecycle = TestLifecycleOwner(Lifecycle.State.RESUMED)
 
     @Before fun setUp() {
         registerMediaMetricsService()
         useFakeImages()
-        compose.setContent { VideoPage(video, isCurrent, onTap = {}) }
+        compose.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides lifecycle) { VideoPage(video, isCurrent, onTap = {}) }
+        }
     }
 
     @Test fun `video shows poster and play button`() {
@@ -46,6 +53,14 @@ class VideoPageTest {
     @Test fun `leaving the page stops playback`() {
         compose.onNodeWithTag("play").performClick()
         isCurrent = false
+        compose.waitForIdle()
+        compose.onNodeWithTag("video-player").assertDoesNotExist()
+        compose.onNodeWithTag("play").assertIsDisplayed()
+    }
+
+    @Test fun `leaving the app stops playback`() {
+        compose.onNodeWithTag("play").performClick()
+        compose.runOnIdle { lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP) }
         compose.waitForIdle()
         compose.onNodeWithTag("video-player").assertDoesNotExist()
         compose.onNodeWithTag("play").assertIsDisplayed()
