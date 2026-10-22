@@ -4,13 +4,20 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
@@ -139,5 +146,43 @@ class DetailScreenTest {
         items = listOf(item(0, start)) + hourly
         compose.waitForIdle()
         showsItem(10)
+    }
+
+    @Test fun `strip shows five older and five newer`() {
+        open(10)
+        (5..15).forEach { compose.onNodeWithTag("strip-$it").assertExists() }
+        compose.onNodeWithTag("strip-4").assertDoesNotExist()
+        compose.onNodeWithTag("strip-16").assertDoesNotExist()
+        compose.onNodeWithTag("strip-current").onChild().assert(hasTestTag("strip-10"))
+    }
+
+    @Test fun `strip at the oldest item has empty older slots`() {
+        open(1)
+        (1..6).forEach { compose.onNodeWithTag("strip-$it").assertExists() }
+        compose.onAllNodesWithTag("strip-empty").assertCountEquals(5)
+    }
+
+    @Test fun `tapping a strip thumbnail jumps there`() {
+        open(10)
+        compose.onNodeWithTag("strip-13").performClick()
+        compose.waitForIdle()
+        showsItem(13)
+    }
+
+    @Test fun `dragging the strip left scrubs newer`() {
+        open(10)
+        // Slots are 36dp wide with 2dp gaps; at density 1 that is 38px each.
+        compose.onNodeWithTag("film-strip").performTouchInput {
+            swipe(start = center, end = center - Offset(3.3f * 38f, 0f), durationMillis = 400)
+        }
+        compose.waitForIdle()
+        showsItem(13)
+    }
+
+    @Test fun `strip hides with the UI`() {
+        open(10)
+        compose.onNodeWithTag("pager").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("strip-current").assertDoesNotExist()
     }
 }
