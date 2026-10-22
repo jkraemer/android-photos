@@ -14,8 +14,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.captureInstant
@@ -31,12 +33,14 @@ class MediaStoreRepository(private val resolver: ContentResolver) : MediaReposit
     private val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
     @OptIn(FlowPreview::class)
-    override fun timeline(): Flow<List<MediaItem>> = changes()
-        .conflate()
-        // Saving one photo fires several notifications in a burst.
-        .debounce(300)
-        .map { query() }
-        .flowOn(Dispatchers.IO)
+    override fun timeline(): Flow<List<MediaItem>> =
+        // The first query runs at once (launch shows the newest photos without
+        // delay); later ones wait out the burst of notifications one saved
+        // photo fires.
+        merge(flowOf(Unit), changes().debounce(300))
+            .conflate()
+            .map { query() }
+            .flowOn(Dispatchers.IO)
 
     private fun changes(): Flow<Unit> = callbackFlow {
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -45,7 +49,6 @@ class MediaStoreRepository(private val resolver: ContentResolver) : MediaReposit
             }
         }
         resolver.registerContentObserver(collection, true, observer)
-        trySend(Unit)
         awaitClose { resolver.unregisterContentObserver(observer) }
     }
 

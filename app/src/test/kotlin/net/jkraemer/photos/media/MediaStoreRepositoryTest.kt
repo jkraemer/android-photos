@@ -3,6 +3,9 @@ package net.jkraemer.photos.media
 import android.database.MatrixCursor
 import android.provider.MediaStore.Files.FileColumns
 import java.time.Instant
+import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import org.junit.Assert.assertEquals
@@ -10,6 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class MediaStoreRepositoryTest {
@@ -54,5 +58,11 @@ class MediaStoreRepositoryTest {
             "content://media/external/video/media/7",
             contentUriOf(MediaItem(7, t, MediaKind.VIDEO, "video/mp4", 0)).toString(),
         )
+    }
+
+    @Test fun `first timeline arrives without waiting out the change debounce`() {
+        val repository = MediaStoreRepository(RuntimeEnvironment.getApplication().contentResolver)
+        val elapsed = measureTimeMillis { runBlocking { repository.timeline().first() } }
+        assertTrue("took $elapsed ms", elapsed < 200)
     }
 }
