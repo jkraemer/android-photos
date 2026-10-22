@@ -7,7 +7,7 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 /** Every date string the app shows, formatted for the device [locale] in [zone]. */
-class DateLabels(locale: Locale, zone: ZoneId) {
+class DateLabels(locale: Locale, val zone: ZoneId) {
     private val day = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).withZone(zone)
     // "LLLL" is the standalone month name, which is what a label on its own needs
     // (e.g. Polish "październik" rather than the genitive "października").
