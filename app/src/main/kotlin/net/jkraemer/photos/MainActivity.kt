@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -31,10 +32,13 @@ import coil3.compose.setSingletonImageLoaderFactory
 import java.time.ZoneId
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.MediaAccess
+import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
 import net.jkraemer.photos.ui.PermissionGate
+import net.jkraemer.photos.ui.detail.DetailActions
+import net.jkraemer.photos.ui.detail.DetailScreen
 import net.jkraemer.photos.ui.grid.GridScreen
 
 /** Composition root: wires the MediaStore repository and the permission gate. */
@@ -79,17 +83,30 @@ class MainActivity : ComponentActivity() {
         val items = viewModel.timeline.collectAsStateWithLifecycle().value ?: return
         val level by viewModel.zoomLevel.collectAsStateWithLifecycle()
         val anchor by viewModel.gridAnchor.collectAsStateWithLifecycle()
+        val openItemId by viewModel.openItemId.collectAsStateWithLifecycle()
         val locale = LocalConfiguration.current.locales[0]
         val labels = remember(locale) { DateLabels(locale, ZoneId.systemDefault()) }
-        GridScreen(
-            items,
-            level,
-            labels,
-            anchor,
-            onAnchorChange = viewModel::anchorGrid,
-            onLevelChange = viewModel::setZoomLevel,
-            onOpen = viewModel::open,
-        )
+        // The detail view overlays the grid, so the grid keeps its scroll
+        // state underneath and only needs the last viewed item as its anchor.
+        Box(Modifier.fillMaxSize()) {
+            GridScreen(
+                items,
+                level,
+                labels,
+                anchor,
+                onAnchorChange = viewModel::anchorGrid,
+                onLevelChange = viewModel::setZoomLevel,
+                onOpen = viewModel::open,
+            )
+            openItemId?.let { id ->
+                DetailScreen(items, id, labels, onClose = viewModel::close, actions = detailActions)
+            }
+        }
+    }
+
+    private val detailActions = object : DetailActions {
+        override fun share(item: MediaItem) {}
+        override fun trash(item: MediaItem) {}
     }
 
     override fun onResume() {

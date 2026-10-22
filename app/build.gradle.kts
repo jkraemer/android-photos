@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.coroutines.android)
     implementation(libs.coil.compose)
+    implementation(libs.telephoto.zoomable.image.coil3)
+    implementation(libs.compose.material.icons)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)

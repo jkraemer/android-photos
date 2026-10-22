@@ -256,4 +256,15 @@ class GridScreenTest {
         compose.waitForIdle()
         compose.onNodeWithTag("cell-200").assertIsDisplayed()
     }
+
+    @Test fun `scrolls to a new anchor that is off screen`() {
+        var anchor by mutableStateOf(bottom)
+        compose.setContent {
+            GridScreen(daily(200), ZoomLevel.LARGE, labels, anchor, onAnchorChange = {}, onLevelChange = {}, onOpen = {})
+        }
+        awaitGrid()
+        anchor = GridAnchor(itemId = 20, pinnedToBottom = false)
+        compose.waitForIdle()
+        compose.onNodeWithTag("cell-20").assertIsDisplayed()
+    }
 }

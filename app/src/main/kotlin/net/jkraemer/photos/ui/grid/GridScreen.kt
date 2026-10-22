@@ -96,6 +96,9 @@ fun GridScreen(
     val gridState = rememberLazyGridState()
     val currentAnchor by rememberUpdatedState(anchor)
     val pinchFocus = remember { mutableStateOf<PinchFocus?>(null) }
+    // The anchor this grid reported itself; when it comes back through the
+    // caller it describes where the grid already is (or just was, mid-fling).
+    val lastReported = remember { mutableStateOf<GridAnchor?>(null) }
     // Building entries walks the whole timeline, so it stays off the main thread.
     val model by produceState<GridModel?>(null, items, level, labels) {
         val previous = value
@@ -136,8 +139,15 @@ fun GridScreen(
             snapshotFlow { newestVisible to !gridState.canScrollForward }
                 .distinctUntilChanged()
                 .collect { (index, atBottom) ->
-                    if (index != null) reportAnchor(GridAnchor(current.items[index].id, atBottom))
+                    if (index != null) {
+                        val report = GridAnchor(current.items[index].id, atBottom)
+                        lastReported.value = report
+                        reportAnchor(report)
+                    }
                 }
+        }
+        LaunchedEffect(anchor) {
+            if (anchor != lastReported.value) revealAnchor(gridState, current, anchor)
         }
 
         LazyVerticalGrid(
@@ -247,6 +257,23 @@ private suspend fun positionGrid(state: LazyGridState, model: GridModel, anchor:
     if (!model.isFirst) return
     val anchorIndex = model.items.indexOfFirst { it.id == anchor.itemId }
     if (anchorIndex >= 0) state.scrollToItem(model.grid.entryIndexOf(anchorIndex))
+}
+
+/** Brings an anchor set from outside (e.g. the item last viewed in detail) on screen if it is not. */
+private suspend fun revealAnchor(state: LazyGridState, model: GridModel, anchor: GridAnchor) {
+    if (anchor.pinnedToBottom) {
+        if (state.canScrollForward) state.scrollToItem(model.grid.entries.lastIndex)
+        return
+    }
+    val itemIndex = model.items.indexOfFirst { it.id == anchor.itemId }
+    if (itemIndex < 0) return
+    val entryIndex = model.grid.entryIndexOf(itemIndex)
+    val layout = state.layoutInfo
+    val info = layout.visibleItemsInfo.firstOrNull { it.index == entryIndex }
+    val fullyVisible = info != null &&
+        info.offset.y >= layout.viewportStartOffset &&
+        info.offset.y + info.size.height <= layout.viewportEndOffset
+    if (!fullyVisible) state.scrollToItem(entryIndex)
 }
 
 /** The laid-out cell nearest to [focal] (in grid coordinates), with its row offset. */
