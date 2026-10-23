@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -80,9 +81,14 @@ class MainActivity : ComponentActivity() {
                         onOpenSettings = ::openAppSettings,
                     ) {
                         // Created only once access is granted, so the first
-                        // query already sees the whole camera roll.
+                        // query already sees the whole camera roll. The
+                        // ViewModel outlives this activity, so it gets the
+                        // application's resolver: the activity's one holds
+                        // the activity and would leak it on every rotation.
                         val viewModel: PhotosViewModel = viewModel(
-                            factory = viewModelFactory { initializer { PhotosViewModel(MediaStoreRepository(contentResolver)) } },
+                            factory = viewModelFactory {
+                                initializer { PhotosViewModel(MediaStoreRepository(this[APPLICATION_KEY]!!.contentResolver)) }
+                            },
                         )
                         PhotosScreen(viewModel)
                     }
