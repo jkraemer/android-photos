@@ -20,3 +20,8 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
   scrub through the timeline, tap a thumbnail to jump.
 - Share through the Android share sheet and move to the system trash.
 - Inline video playback with sound.
+- Swipe up on a photo or video for its details: date, file, camera, lens,
+  size, exposure and where it was taken, as a place name from the system
+  geocoder (GrapheneOS: Settings → Location → Location services → Geocoder)
+  or as coordinates. Tap the place to open it in a maps app. The app asks
+  for access to photo locations the first time you swipe up.

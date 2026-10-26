@@ -33,11 +33,15 @@ produces an unsigned APK.
 
 - **`core`** (plain Kotlin/JVM) decides: `TimelineGrid` (entries and headers
   per `ZoomLevel`), `DateLabels`, `newestFullyVisible`, `stripScrollFor`,
-  `centredItem`, `neighbourAfterRemoval`, `MediaAccess`.
+  `centredItem`, `neighbourAfterRemoval`, `MediaAccess`, `LocationAsk`;
+  `PhotoInfo.kt` holds the info panel's model and wording (`MediaMetadata`,
+  `InfoFormat`, `placeName`, `geoUri`, `panelOpenAfterDrag`).
 - **`app`** touches the system: `MediaStoreRepository` (query + observer
   flow), `MediaThumbnailFetcher` (Coil, via `ContentResolver.loadThumbnail`),
-  `MediaActions` (share, trash request), `PermissionGate`, `GridScreen`,
-  `DetailScreen`, `FilmStrip`, `VideoPage`. `MainActivity` is the composition
+  `MediaActions` (share, trash request, map intent), `MediaStoreMetadataSource`
+  (MediaStore + EXIF + video container), `GeocoderPlaceNames`,
+  `PermissionGate`, `GridScreen`, `DetailScreen`, `FilmStrip`, `InfoPanel`,
+  `VideoPage`. `MainActivity` is the composition
   root; the detail view overlays the grid so the grid keeps its scroll state.
 
 ## Constraints that shape the code
@@ -53,6 +57,11 @@ produces an unsigned APK.
 - **`DetailScreen` reads items through `rememberUpdatedState` inside
   `BoxWithConstraints`.** The pager's page count updates before that
   subcomposition, so a captured list goes out of bounds when an item arrives.
+- **EXIF goes through androidx's `ExifInterface`.** The platform class
+  (API 36) has no LensModel tag; the androidx one ships with Coil anyway.
+- **Locations need `ACCESS_MEDIA_LOCATION` and `setRequireOriginal`.**
+  Without both, Android strips GPS from EXIF and video metadata; a revoked
+  permission makes the original read throw `SecurityException`.
 - **The detail view follows its item by id.** Other apps (Immich freeing
   space) remove items while it is open; it then lands on the older neighbour.
 

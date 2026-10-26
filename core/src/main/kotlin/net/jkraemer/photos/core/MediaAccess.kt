@@ -15,3 +15,28 @@ enum class MediaAccess {
         }
     }
 }
+
+/**
+ * What to do about ACCESS_MEDIA_LOCATION, which the info panel needs to show
+ * where a photo was taken. Nothing is stored: Android's own flags say whether
+ * the user said no before.
+ */
+enum class LocationAsk {
+    NOTHING, REQUEST, SETTINGS;
+
+    companion object {
+        /**
+         * Opening the panel asks by itself only while the user has never said
+         * no ([deniedBefore] is Android's rationale flag) and only once a run.
+         */
+        fun onPanelOpen(granted: Boolean, deniedBefore: Boolean, askedThisRun: Boolean): LocationAsk =
+            if (!granted && !deniedBefore && !askedThisRun) REQUEST else NOTHING
+
+        /** The "Show location" row asks while Android still prompts, then sends to settings. */
+        fun onShowLocation(granted: Boolean, canRequest: Boolean): LocationAsk = when {
+            granted -> NOTHING
+            canRequest -> REQUEST
+            else -> SETTINGS
+        }
+    }
+}

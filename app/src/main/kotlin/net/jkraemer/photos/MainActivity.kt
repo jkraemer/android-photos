@@ -1,16 +1,19 @@
 package net.jkraemer.photos
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.activity.result.contract.ActivityResultContracts.RequestPermission
 import androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +38,7 @@ import coil3.compose.setSingletonImageLoaderFactory
 import java.time.ZoneId
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.GeoPoint
+import net.jkraemer.photos.core.LocationAsk
 import net.jkraemer.photos.core.MediaAccess
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.media.GeocoderPlaceNames
@@ -42,6 +46,7 @@ import net.jkraemer.photos.media.MediaStoreMetadataSource
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
+import net.jkraemer.photos.media.mapIntent
 import net.jkraemer.photos.media.shareIntent
 import net.jkraemer.photos.media.trashRequest
 import net.jkraemer.photos.ui.PermissionGate
@@ -61,6 +66,15 @@ class MainActivity : ComponentActivity() {
         canRequestAccess = access != MediaAccess.NONE ||
             shouldShowRequestPermissionRationale(Manifest.permission.READ_MEDIA_IMAGES) ||
             shouldShowRequestPermissionRationale(Manifest.permission.READ_MEDIA_VIDEO)
+    }
+
+    private var locationGranted by mutableStateOf(false)
+    private var askedLocationThisRun = false
+    private var canRequestLocation = true
+    private val requestLocation = registerForActivityResult(RequestPermission()) { granted ->
+        locationGranted = granted
+        // As with media access: after repeated denials only settings help.
+        canRequestLocation = granted || shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_MEDIA_LOCATION)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,7 +143,7 @@ class MainActivity : ComponentActivity() {
                     onClose = viewModel::close,
                     actions = detailActions,
                     info = infoSource,
-                    locationGranted = false,
+                    locationGranted = locationGranted,
                 )
             }
         }
@@ -148,11 +162,29 @@ class MainActivity : ComponentActivity() {
             confirmTrash.launch(IntentSenderRequest.Builder(trashRequest(contentResolver, item)).build())
         }
 
-        override fun showOnMap(point: GeoPoint) {}
+        override fun showOnMap(point: GeoPoint) {
+            try {
+                startActivity(mapIntent(point))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(this@MainActivity, "No maps app installed", Toast.LENGTH_SHORT).show()
+            }
+        }
 
-        override fun panelOpened() {}
+        override fun panelOpened() {
+            val deniedBefore = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            if (LocationAsk.onPanelOpen(locationGranted, deniedBefore, askedLocationThisRun) == LocationAsk.REQUEST) {
+                askedLocationThisRun = true
+                requestLocation.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
+            }
+        }
 
-        override fun showLocation() {}
+        override fun showLocation() {
+            when (LocationAsk.onShowLocation(locationGranted, canRequestLocation)) {
+                LocationAsk.REQUEST -> requestLocation.launch(Manifest.permission.ACCESS_MEDIA_LOCATION)
+                LocationAsk.SETTINGS -> openAppSettings()
+                LocationAsk.NOTHING -> {}
+            }
+        }
     }
 
     private val infoSource by lazy {
@@ -178,6 +210,7 @@ class MainActivity : ComponentActivity() {
             videos = granted(Manifest.permission.READ_MEDIA_VIDEO),
             userSelected = granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED),
         )
+        locationGranted = granted(Manifest.permission.ACCESS_MEDIA_LOCATION)
     }
 
     private fun openAppSettings() {

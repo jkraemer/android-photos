@@ -3,8 +3,11 @@ package net.jkraemer.photos.media
 import android.app.PendingIntent
 import android.content.ContentResolver
 import android.content.Intent
+import android.net.Uri
 import android.provider.MediaStore
+import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
+import net.jkraemer.photos.core.geoUri
 
 /** The system share sheet for [item], with read access granted to the receiving app. */
 fun shareIntent(item: MediaItem): Intent = Intent.createChooser(
@@ -22,3 +25,6 @@ fun shareIntent(item: MediaItem): Intent = Intent.createChooser(
  */
 fun trashRequest(resolver: ContentResolver, item: MediaItem): PendingIntent =
     MediaStore.createTrashRequest(resolver, listOf(contentUriOf(item)), true)
+
+/** Opens [point] in whichever maps app handles `geo:` links. */
+fun mapIntent(point: GeoPoint): Intent = Intent(Intent.ACTION_VIEW, Uri.parse(geoUri(point)))

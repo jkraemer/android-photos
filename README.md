@@ -25,11 +25,20 @@ fling it to scrub, tap a thumbnail to jump. Share opens the Android share sheet;
 item to the system trash, which empties itself after about 30 days. Videos
 play inline with sound.
 
+**Info** — swipe up on a photo or video to see when it was taken, its file
+name, camera, lens, size and exposure, and where it was taken; swipe down or
+press Back to put it away. The place name comes from the system's geocoder
+(on GrapheneOS: Settings → Location → Location services → Geocoder) and
+falls back to coordinates; tap it to open a maps app. The app itself has no
+internet access.
+
 ## Requirements
 
 - Android 15+ (minSdk 35)
 - Full access to photos and videos ("Allow all"); with "Select photos" the
   app asks you to change that in its settings.
+- Access to photo locations, asked for when you first open the info panel;
+  without it the panel shows everything but the place.
 - Developed against a Pixel on GrapheneOS with Google Camera.
 
 ## Building
@@ -60,10 +69,12 @@ publishes a release with that changelog section as its notes.
 - **core** — plain Kotlin, everything that decides: timeline order, grid
   entries and headers per zoom level, date labels, which item the floating
   date names, the film-strip window, where the detail view lands when its
-  item disappears. Fully testable on the JVM.
+  item disappears, and how the info panel words a photo's metadata. Fully
+  testable on the JVM.
 - **app** — everything that touches the system: the MediaStore query and
-  observer, thumbnails through MediaStore's own cache, share and trash
-  intents, the permission gate, and the Compose screens.
+  observer, thumbnails through MediaStore's own cache, EXIF and video
+  metadata, the geocoder, share, trash and map intents, the permission gate,
+  and the Compose screens.
 
 ## License
 

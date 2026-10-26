@@ -5,6 +5,8 @@
          app can tell partial access apart instead of getting a silently
          session-scoped READ_MEDIA_* grant. -->
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+    <!-- Without it Android strips the location from photos and videos. -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
     <application
         android:label="@string/app_name"
