@@ -1,0 +1,132 @@
+package net.jkraemer.photos.ui.detail
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import net.jkraemer.photos.core.GeoPoint
+import net.jkraemer.photos.core.InfoText
+import net.jkraemer.photos.core.coordinates
+
+private val CARD_COLOR = Color(0xFF1C1C1E)
+private val CARD_SHAPE = RoundedCornerShape(16.dp)
+private val SECONDARY = Color(0xFF98989F)
+
+/**
+ * What the file says about the item on screen, as dark cards in the style of
+ * iOS Photos. A missing field leaves its line out; [info] of null (still
+ * reading) draws nothing. The location needs ACCESS_MEDIA_LOCATION: without
+ * [locationGranted] Android hides whether there is one, so the panel offers
+ * to ask instead. The caller owns scrolling.
+ */
+@Composable
+fun InfoPanel(
+    info: InfoText?,
+    placeName: String?,
+    locationGranted: Boolean,
+    onShowOnMap: (GeoPoint) -> Unit,
+    onShowLocation: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (info == null) return
+    Column(modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card {
+            Text(info.date, Modifier.testTag("info-date"), color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(info.fileName, Modifier.testTag("info-file"), color = SECONDARY, fontSize = 14.sp)
+        }
+        Card {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    info.camera.orEmpty(),
+                    Modifier.weight(1f).then(if (info.camera != null) Modifier.testTag("info-camera") else Modifier),
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    info.badge,
+                    Modifier
+                        .border(1.dp, SECONDARY, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                        .testTag("info-badge"),
+                    color = SECONDARY,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            info.lens?.let { Text(it, Modifier.testTag("info-lens"), color = SECONDARY, fontSize = 14.sp) }
+            info.dimensions?.let { Text(it, Modifier.testTag("info-dimensions"), color = SECONDARY, fontSize = 14.sp) }
+            if (info.exposure.isNotEmpty()) ExposureRow(info.exposure)
+        }
+        val location = info.location
+        when {
+            !locationGranted -> LocationCard("Show location", Modifier.testTag("info-show-location"), onShowLocation)
+            location != null -> LocationCard(placeName ?: coordinates(location), Modifier.testTag("info-location")) {
+                onShowOnMap(location)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier.fillMaxWidth().background(CARD_COLOR, CARD_SHAPE).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        content = content,
+    )
+}
+
+/** ISO, focal length, compensation, aperture and shutter in equal cells divided by thin lines. */
+@Composable
+private fun ExposureRow(entries: List<String>) {
+    Row(
+        Modifier.fillMaxWidth().padding(top = 8.dp).height(IntrinsicSize.Min).testTag("info-exposure"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        entries.forEachIndexed { index, entry ->
+            if (index > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(SECONDARY.copy(alpha = 0.4f)))
+            Text(entry, Modifier.weight(1f), color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun LocationCard(text: String, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(CARD_SHAPE)
+            .background(CARD_COLOR)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Color.White)
+        Text(text, Modifier.padding(start = 12.dp), color = Color.White)
+    }
+}
