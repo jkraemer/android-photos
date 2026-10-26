@@ -344,13 +344,9 @@ class DetailScreenTest {
         assertEquals(emptyList<Long?>(), closed)
     }
 
-    @Test fun `back closes the panel first, then the view`() {
+    @Test fun `back closes the view even with the panel open`() {
         open(10)
         openPanel()
-        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
-        compose.waitForIdle()
-        compose.onNodeWithTag("info-panel").assertDoesNotExist()
-        assertEquals(emptyList<Long?>(), closed)
         compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
         compose.waitForIdle()
         assertEquals(listOf<Long?>(10), closed)

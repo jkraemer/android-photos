@@ -43,7 +43,6 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -69,7 +68,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import coil3.request.ImageRequest
 import coil3.request.Options
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
@@ -141,7 +139,6 @@ fun DetailScreen(
     var panelOpen by rememberSaveable { mutableStateOf(false) }
     // How far the info panel is out: 0 shut, 1 open, in between while dragged or settling.
     var panelFraction by remember { mutableFloatStateOf(if (panelOpen) 1f else 0f) }
-    val scope = rememberCoroutineScope()
     val close by rememberUpdatedState(onClose)
     val latestItems by rememberUpdatedState(items)
 
@@ -179,8 +176,6 @@ fun DetailScreen(
     }
 
     BackHandler { close(currentId) }
-    // Registered later, so it gets Back first while the panel is open.
-    BackHandler(enabled = panelOpen) { scope.launch { settlePanel(false) } }
     SystemBarsVisible(uiVisible)
 
     BoxWithConstraints(modifier.fillMaxSize()) {
