@@ -46,13 +46,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import coil3.request.ImageRequest
+import coil3.request.Options
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
@@ -62,6 +66,7 @@ import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.neighbourAfterRemoval
+import net.jkraemer.photos.media.MediaThumbnailKeyer
 import net.jkraemer.photos.media.contentUriOf
 
 /** What the detail view's buttons do with the item on screen. */
@@ -214,7 +219,7 @@ fun DetailScreen(
 private fun PhotoPage(item: MediaItem, isCurrent: Boolean, onTap: () -> Unit, onZoomChange: (Boolean) -> Unit) {
     val zoomState = rememberZoomableImageState(rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 8f)))
     ZoomableAsyncImage(
-        model = contentUriOf(item),
+        model = photoRequest(LocalContext.current, item, LocalDensity.current),
         contentDescription = null,
         state = zoomState,
         onClick = { onTap() },
@@ -231,6 +236,17 @@ private fun PhotoPage(item: MediaItem, isCurrent: Boolean, onTap: () -> Unit, on
         if (!isCurrent) zoomState.zoomableState.resetZoom(animationSpec = SnapSpec())
     }
 }
+
+/**
+ * The full-size image of [item], showing the film strip's thumbnail from the
+ * memory cache until it loads: scrubbing the strip passes photos faster than
+ * they decode, and the view would otherwise stay black.
+ */
+internal fun photoRequest(context: Context, item: MediaItem, density: Density): ImageRequest =
+    ImageRequest.Builder(context)
+        .data(contentUriOf(item))
+        .placeholderMemoryCacheKey(MediaThumbnailKeyer().key(stripThumbnail(item, density), Options(context)))
+        .build()
 
 /** Shows or hides the status and navigation bars along with the view's own UI. */
 @Composable

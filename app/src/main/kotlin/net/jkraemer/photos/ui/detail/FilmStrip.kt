@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
@@ -64,7 +65,7 @@ private enum class Lead {
 @Composable
 fun FilmStrip(items: List<MediaItem>, pagerState: PagerState, modifier: Modifier = Modifier) {
     val pitchPx = with(LocalDensity.current) { (SLOT_WIDTH + SLOT_GAP).toPx() }
-    val thumbnailPx = thumbnailSizePx(with(LocalDensity.current) { SLOT_HEIGHT.roundToPx() })
+    val density = LocalDensity.current
     val stripState = rememberLazyListState(initialFirstVisibleItemIndex = pagerState.currentPage)
     val scope = rememberCoroutineScope()
     var lead by remember { mutableStateOf(Lead.PAGER) }
@@ -112,8 +113,8 @@ fun FilmStrip(items: List<MediaItem>, pagerState: PagerState, modifier: Modifier
                         .then(if (isCurrent) Modifier.border(2.dp, Color.White).testTag("strip-current") else Modifier),
                 ) {
                     Thumbnail(
-                        items[index],
-                        thumbnailPx,
+                        stripThumbnail(items[index], density),
+                        items[index].id,
                         Modifier.size(SLOT_WIDTH, SLOT_HEIGHT).clickable {
                             lead = Lead.TAP
                             scope.launch { pagerState.scrollToPage(index) }
@@ -132,12 +133,16 @@ fun FilmStrip(items: List<MediaItem>, pagerState: PagerState, modifier: Modifier
     }
 }
 
+/** The thumbnail the strip shows for [item]; the detail view reuses it while a photo loads. */
+internal fun stripThumbnail(item: MediaItem, density: Density): MediaThumbnail =
+    MediaThumbnail(contentUriOf(item), thumbnailSizePx(with(density) { SLOT_HEIGHT.roundToPx() }))
+
 @Composable
-private fun Thumbnail(item: MediaItem, sizePx: Int, modifier: Modifier) {
+private fun Thumbnail(thumbnail: MediaThumbnail, id: Long, modifier: Modifier) {
     AsyncImage(
-        model = MediaThumbnail(contentUriOf(item), sizePx),
+        model = thumbnail,
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = modifier.background(Color.DarkGray).testTag("strip-${item.id}"),
+        modifier = modifier.background(Color.DarkGray).testTag("strip-$id"),
     )
 }
