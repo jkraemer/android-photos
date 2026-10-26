@@ -10,8 +10,9 @@ import net.jkraemer.photos.core.geoPointOrNull
 import net.jkraemer.photos.core.placeName
 
 /**
- * Place names from the system's geocoder. The lookup runs in the OS (on
- * GrapheneOS its opt-in geocoder), so the app itself stays offline. A
+ * Place names from the system's geocoder (on GrapheneOS its opt-in one,
+ * backed by GrapheneOS's server). The lookup runs in the OS, but Android
+ * serves only apps that hold INTERNET; without it there is no geocoder. A
  * [geocoder] of null means the system has none.
  */
 class GeocoderPlaceNames(private val geocoder: Geocoder?) {

@@ -29,8 +29,10 @@ play inline with sound.
 name, camera, lens, size and exposure, and where it was taken; swipe down or
 press Back to put it away. The place name comes from the system's geocoder
 (on GrapheneOS: Settings → Location → Location services → Geocoder) and
-falls back to coordinates; tap it to open a maps app. The app itself has no
-internet access.
+falls back to coordinates; tap it to open a maps app. The app's own code
+opens no connections; it holds the internet permission only because the
+system geocoder requires it, so turning the app's network access off just
+leaves coordinates.
 
 ## Requirements
 

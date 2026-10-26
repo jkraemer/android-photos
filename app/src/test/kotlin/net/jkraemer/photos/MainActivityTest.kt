@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,9 +25,9 @@ class MainActivityTest {
         assertTrue(Manifest.permission.ACCESS_MEDIA_LOCATION in info.requestedPermissions.orEmpty())
     }
 
-    @Test fun `stays offline`() {
+    @Test fun `declares the internet permission the system geocoder demands`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val info = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
-        assertFalse(Manifest.permission.INTERNET in info.requestedPermissions.orEmpty())
+        assertTrue(Manifest.permission.INTERNET in info.requestedPermissions.orEmpty())
     }
 }

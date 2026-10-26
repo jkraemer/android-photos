@@ -59,6 +59,9 @@ produces an unsigned APK.
   subcomposition, so a captured list goes out of bounds when an item arrives.
 - **EXIF goes through androidx's `ExifInterface`.** The platform class
   (API 36) has no LensModel tag; the androidx one ships with Coil anyway.
+- **The system geocoder needs `INTERNET`.** On GrapheneOS an app without it
+  gets `isPresent() == false` and "geocoding requires
+  android.permission.INTERNET", even with the Geocoder setting on.
 - **Locations need `ACCESS_MEDIA_LOCATION` and `setRequireOriginal`.**
   Without both, Android strips GPS from EXIF and video metadata; a revoked
   permission makes the original read throw `SecurityException`.
