@@ -14,21 +14,27 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.swipeUp
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
+import net.jkraemer.photos.FakeInfoSource
 import net.jkraemer.photos.core.DateLabels
+import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.item
+import net.jkraemer.photos.pixelMetadata
 import net.jkraemer.photos.useFakeImages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -51,6 +57,9 @@ class DetailScreenTest {
     private val noActions = object : DetailActions {
         override fun share(item: MediaItem) {}
         override fun trash(item: MediaItem) {}
+        override fun showOnMap(point: GeoPoint) {}
+        override fun panelOpened() {}
+        override fun showLocation() {}
     }
 
     @Before fun images() = useFakeImages()
@@ -60,14 +69,33 @@ class DetailScreenTest {
     /** Records which item each button passed; the screen's wiring is what is under test. */
     private val shared = mutableListOf<Long>()
     private val trashed = mutableListOf<Long>()
+    private val shownOnMap = mutableListOf<GeoPoint>()
+    private var panelOpenings = 0
+    private var showLocationTaps = 0
     private val recordingActions = object : DetailActions {
         override fun share(item: MediaItem) { shared += item.id }
         override fun trash(item: MediaItem) { trashed += item.id }
+        override fun showOnMap(point: GeoPoint) { shownOnMap += point }
+        override fun panelOpened() { panelOpenings++ }
+        override fun showLocation() { showLocationTaps++ }
     }
 
-    private fun open(id: Long, actions: DetailActions = noActions) {
+    private fun open(
+        id: Long,
+        actions: DetailActions = noActions,
+        info: InfoSource = FakeInfoSource(),
+        locationGranted: Boolean = true,
+    ) {
         compose.setContent {
-            DetailScreen(items, id, labels, onClose = { closed += it }, actions = actions)
+            DetailScreen(
+                items,
+                id,
+                labels,
+                onClose = { closed += it },
+                actions = actions,
+                info = info,
+                locationGranted = locationGranted,
+            )
         }
         compose.waitForIdle()
     }
@@ -268,5 +296,148 @@ class DetailScreenTest {
             compose.onNodeWithTag("timestamp").assert(hasText(allowed[0]) or hasText(allowed[1]))
         }
         showsItem(9)
+    }
+
+    private fun openPanel() {
+        compose.onNodeWithTag("pager").performTouchInput { swipeUp() }
+        compose.waitForIdle()
+    }
+
+    private fun showsFile(id: Long) = compose.onNodeWithTag("info-file").assertTextEquals("item-$id.jpg")
+
+    @Test fun `swiping up opens the panel in place of the film strip`() {
+        open(10, recordingActions)
+        openPanel()
+        compose.onNodeWithTag("info-panel").assertIsDisplayed()
+        showsFile(10)
+        compose.onNodeWithTag("film-strip").assertDoesNotExist()
+        assertEquals(1, panelOpenings)
+    }
+
+    @Test fun `a short swipe up snaps back`() {
+        open(10, recordingActions)
+        compose.onNodeWithTag("pager").performTouchInput {
+            swipe(start = center, end = center - Offset(0f, 50f), durationMillis = 1_000)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+        compose.onNodeWithTag("film-strip").assertExists()
+        assertEquals(0, panelOpenings)
+    }
+
+    @Test fun `the photo sits above the panel`() {
+        open(10)
+        openPanel()
+        val pager = compose.onNodeWithTag("pager").fetchSemanticsNode().boundsInRoot
+        val panel = compose.onNodeWithTag("info-panel").fetchSemanticsNode().boundsInRoot
+        assertTrue("pager $pager, panel $panel", pager.bottom <= panel.top + 1f)
+        assertTrue("panel $panel", panel.height > 0f)
+    }
+
+    @Test fun `swiping down on the photo closes the panel, not the view`() {
+        open(10)
+        openPanel()
+        compose.onNodeWithTag("pager").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+        compose.onNodeWithTag("film-strip").assertExists()
+        assertEquals(emptyList<Long?>(), closed)
+    }
+
+    @Test fun `back closes the panel first, then the view`() {
+        open(10)
+        openPanel()
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+        assertEquals(emptyList<Long?>(), closed)
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+        assertEquals(listOf<Long?>(10), closed)
+    }
+
+    @Test fun `paging sideways keeps the panel open with the new item's file`() {
+        open(10)
+        openPanel()
+        compose.onNodeWithTag("pager").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertIsDisplayed()
+        showsFile(11)
+    }
+
+    @Test fun `a slow read for the previous item never shows on the current one`() {
+        open(10, info = FakeInfoSource(delayFor = { if (it.id == 10L) 5_000 else 0 }))
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("pager").performTouchInput { swipeUp() }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("pager").performTouchInput { swipeLeft() }
+        repeat(100) {
+            compose.mainClock.advanceTimeBy(100)
+            val files = compose.onAllNodesWithTag("info-file").fetchSemanticsNodes()
+                .map { it.config[SemanticsProperties.Text].single().text }
+            assertTrue("showed $files", "item-10.jpg" !in files)
+        }
+        showsFile(11)
+    }
+
+    @Test fun `tapping the photo while open hides the top bar but keeps the panel`() {
+        open(10)
+        openPanel()
+        compose.onNodeWithTag("pager").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("top-bar").assertDoesNotExist()
+        compose.onNodeWithTag("info-panel").assertIsDisplayed()
+        compose.onNodeWithTag("film-strip").assertDoesNotExist()
+    }
+
+    @Test fun `opening the panel shows a hidden top bar`() {
+        open(10)
+        compose.onNodeWithTag("pager").performClick()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithTag("top-bar").assertDoesNotExist()
+        openPanel()
+        compose.onNodeWithTag("top-bar").assertExists()
+    }
+
+    @Test fun `a zoomed photo ignores the swipe up`() {
+        open(10)
+        compose.onNodeWithTag("pager").performTouchInput { doubleClick() }
+        compose.mainClock.advanceTimeBy(1_000)
+        openPanel()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+    }
+
+    @Test fun `scrolling the panel down past its top closes it`() {
+        open(10)
+        openPanel()
+        compose.onNodeWithTag("info-panel").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+        assertEquals(emptyList<Long?>(), closed)
+    }
+
+    @Test fun `panel stays open when the shown item is removed`() {
+        open(10)
+        openPanel()
+        items = hourly.filter { it.id != 10L }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertIsDisplayed()
+        showsFile(9)
+    }
+
+    @Test fun `the location card opens the map`() {
+        open(10, recordingActions, info = FakeInfoSource(metadata = { pixelMetadata }, place = "Burg auf Fehmarn, Germany"))
+        openPanel()
+        compose.onNodeWithText("Burg auf Fehmarn, Germany", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("info-location").performClick()
+        assertEquals(listOf(GeoPoint(54.5021, 11.2312)), shownOnMap)
+    }
+
+    @Test fun `without permission the panel asks through Show location`() {
+        open(10, recordingActions, info = FakeInfoSource(metadata = { pixelMetadata }), locationGranted = false)
+        openPanel()
+        compose.onNodeWithTag("info-location").assertDoesNotExist()
+        compose.onNodeWithTag("info-show-location").performClick()
+        assertEquals(1, showLocationTaps)
     }
 }

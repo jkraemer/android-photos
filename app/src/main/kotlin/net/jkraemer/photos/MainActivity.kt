@@ -34,8 +34,11 @@ import coil3.ImageLoader
 import coil3.compose.setSingletonImageLoaderFactory
 import java.time.ZoneId
 import net.jkraemer.photos.core.DateLabels
+import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaAccess
 import net.jkraemer.photos.core.MediaItem
+import net.jkraemer.photos.media.GeocoderPlaceNames
+import net.jkraemer.photos.media.MediaStoreMetadataSource
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
@@ -44,6 +47,7 @@ import net.jkraemer.photos.media.trashRequest
 import net.jkraemer.photos.ui.PermissionGate
 import net.jkraemer.photos.ui.detail.DetailActions
 import net.jkraemer.photos.ui.detail.DetailScreen
+import net.jkraemer.photos.ui.detail.InfoSource
 import net.jkraemer.photos.ui.grid.GridScreen
 
 /** Composition root: wires the MediaStore repository and the permission gate. */
@@ -118,7 +122,15 @@ class MainActivity : ComponentActivity() {
                 onOpen = viewModel::open,
             )
             openItemId?.let { id ->
-                DetailScreen(items, id, labels, onClose = viewModel::close, actions = detailActions)
+                DetailScreen(
+                    items,
+                    id,
+                    labels,
+                    onClose = viewModel::close,
+                    actions = detailActions,
+                    info = infoSource,
+                    locationGranted = false,
+                )
             }
         }
     }
@@ -134,6 +146,22 @@ class MainActivity : ComponentActivity() {
 
         override fun trash(item: MediaItem) {
             confirmTrash.launch(IntentSenderRequest.Builder(trashRequest(contentResolver, item)).build())
+        }
+
+        override fun showOnMap(point: GeoPoint) {}
+
+        override fun panelOpened() {}
+
+        override fun showLocation() {}
+    }
+
+    private val infoSource by lazy {
+        // Application objects only: the activity's resolver would leak the activity on rotation.
+        val metadata = MediaStoreMetadataSource(applicationContext.contentResolver, applicationContext)
+        val places = GeocoderPlaceNames.of(applicationContext)
+        object : InfoSource {
+            override suspend fun metadata(item: MediaItem, withLocation: Boolean) = metadata.read(item, withLocation)
+            override suspend fun placeName(point: GeoPoint) = places.placeName(point)
         }
     }
 

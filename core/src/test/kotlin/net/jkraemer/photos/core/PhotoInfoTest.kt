@@ -133,4 +133,22 @@ class PhotoInfoTest {
         assertEquals("Germany", placeName(null, null, null, null, "Germany"))
         assertNull(placeName(null, null, null, null, null))
     }
+
+    private fun afterDrag(open: Boolean, dragPx: Float, velocityPx: Float = 0f) =
+        panelOpenAfterDrag(open, dragPx, velocityPx, thresholdPx = 100f, velocityThresholdPx = 1000f)
+
+    @Test fun `a long drag up opens the panel`() = assertEquals(true, afterDrag(open = false, dragPx = -150f))
+
+    @Test fun `a short slow drag up leaves it closed`() = assertEquals(false, afterDrag(open = false, dragPx = -50f, velocityPx = -200f))
+
+    @Test fun `a fast short flick up opens it`() = assertEquals(true, afterDrag(open = false, dragPx = -30f, velocityPx = -2000f))
+
+    @Test fun `a long drag down closes an open panel`() = assertEquals(false, afterDrag(open = true, dragPx = 150f))
+
+    @Test fun `a short drag down leaves it open`() = assertEquals(true, afterDrag(open = true, dragPx = 50f))
+
+    @Test fun `a fast flick down closes it`() = assertEquals(false, afterDrag(open = true, dragPx = 20f, velocityPx = 2000f))
+
+    @Test fun `flicking back up after a long drag down keeps it open`() =
+        assertEquals(true, afterDrag(open = true, dragPx = 150f, velocityPx = -2000f))
 }

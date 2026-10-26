@@ -193,3 +193,16 @@ fun rawOriginalName(displayName: String): String? =
 
 private const val RAW_COVER = ".RAW-01.COVER.jpg"
 private const val RAW_ORIGINAL = ".RAW-02.ORIGINAL.dng"
+
+/**
+ * Whether the info panel ends up open after a vertical drag of [dragPx]
+ * released at [velocityPx] (negative is upwards). A fast flick goes where it
+ * points; a slow release goes by distance and otherwise stays where it was.
+ */
+fun panelOpenAfterDrag(open: Boolean, dragPx: Float, velocityPx: Float, thresholdPx: Float, velocityThresholdPx: Float): Boolean =
+    when {
+        velocityPx < -velocityThresholdPx -> true
+        velocityPx > velocityThresholdPx -> false
+        open -> dragPx <= thresholdPx
+        else -> -dragPx > thresholdPx
+    }
