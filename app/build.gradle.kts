@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.compose.material.icons)
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+    implementation(libs.exifinterface)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
