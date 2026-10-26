@@ -122,4 +122,15 @@ class PhotoInfoTest {
         assertEquals("0:26", formatDuration(26_000))
         assertEquals("12:05", formatDuration(725_000))
     }
+
+    @Test fun `place names prefer the town, then the area, then the feature`() {
+        assertEquals("Fehmarn Belt", placeName("Fehmarn Belt", null, null, null, null))
+        assertEquals("Burg auf Fehmarn, Germany", placeName(null, "Burg auf Fehmarn", "Ostholstein", "Schleswig-Holstein", "Germany"))
+        assertEquals("Ostholstein, Germany", placeName(null, null, "Ostholstein", "Schleswig-Holstein", "Germany"))
+        assertEquals("Schleswig-Holstein, Germany", placeName(null, null, null, "Schleswig-Holstein", "Germany"))
+        assertEquals("Burg auf Fehmarn", placeName(null, "Burg auf Fehmarn", null, null, null))
+        assertEquals("Fehmarn Belt", placeName("Fehmarn Belt", null, null, null, "Germany"))
+        assertEquals("Germany", placeName(null, null, null, null, "Germany"))
+        assertNull(placeName(null, null, null, null, null))
+    }
 }

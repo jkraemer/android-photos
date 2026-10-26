@@ -166,6 +166,16 @@ fun geoUri(point: GeoPoint): String {
     return "geo:$at?q=$at"
 }
 
+/**
+ * The town (or failing that, the district or region) and its country. A
+ * geocoder's feature name is often a house number on land, so it is only
+ * used where there is no town, as at sea ("Fehmarn Belt").
+ */
+fun placeName(feature: String?, locality: String?, subAdminArea: String?, adminArea: String?, country: String?): String? {
+    val area = locality ?: subAdminArea ?: adminArea
+    return if (area != null) listOfNotNull(area, country).joinToString(", ") else feature ?: country
+}
+
 private fun plain(value: Double) = value.toBigDecimal().toPlainString()
 
 private val ISO_6709 = Regex("""^([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)""")
