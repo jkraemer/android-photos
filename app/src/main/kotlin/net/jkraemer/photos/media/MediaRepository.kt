@@ -69,9 +69,9 @@ class MediaStoreRepository(private val resolver: ContentResolver) : MediaReposit
             FileColumns.DURATION,
         )
 
-        // Only the camera's own folder: Google Camera keeps RAW files in
-        // DCIM/Camera/Raw/, which the exact path match excludes; the MIME check
-        // keeps a DNG saved next to its JPEG from showing up twice.
+        // Only the camera's own folder, without subfolders. Google Camera saves
+        // a RAW shot's DNG next to its JPEG in DCIM/Camera/; the MIME check
+        // keeps the shot from showing up twice.
         val SELECTION = "${FileColumns.RELATIVE_PATH} = ? AND " +
             "${FileColumns.MEDIA_TYPE} IN (${FileColumns.MEDIA_TYPE_IMAGE}, ${FileColumns.MEDIA_TYPE_VIDEO}) AND " +
             "${FileColumns.MIME_TYPE} != ?"

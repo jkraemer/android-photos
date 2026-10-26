@@ -56,6 +56,20 @@ produces an unsigned APK.
 - **The detail view follows its item by id.** Other apps (Immich freeing
   space) remove items while it is open; it then lands on the older neighbour.
 
+## On the device (Pixel 10 Pro, GrapheneOS)
+
+- Google Camera saves a RAW shot as `….RAW-01.COVER.jpg` plus
+  `….RAW-02.ORIGINAL.dng`, both directly in `DCIM/Camera/`; only the MIME
+  filter keeps the DNG out.
+- telephoto 0.19.0 leaks one file descriptor per full-size photo it checks
+  (`SubSamplingImageSource.exists()` never closes its `peek()` stream).
+  The system logs "A resource failed to call close" when it is finalized.
+  This comes from the library; the app's own code doesn't cause it.
+- Robolectric attaches activities to the application's `ContextImpl`, so a
+  leak of an activity through its `ContentResolver` cannot be reproduced
+  there; check `adb shell dumpsys meminfo net.jkraemer.photos` (`Activities:`)
+  after rotating instead.
+
 ## Testing notes
 
 - Robolectric screens run at density 1: a 412dp screen is 412px wide, so
