@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -238,7 +239,7 @@ private fun HeaderLabel(headline: Headline) {
                 }
             },
             Modifier
-                .background(Color.Black.copy(alpha = 0.5f))
+                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
             color = Color.White,
             fontWeight = FontWeight.Bold,
