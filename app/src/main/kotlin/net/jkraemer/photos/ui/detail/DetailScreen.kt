@@ -38,7 +38,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -55,7 +54,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
@@ -200,12 +198,9 @@ fun DetailScreen(
                     Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = Color.White)
                 }
             }
-            val scope = rememberCoroutineScope()
             FilmStrip(
                 latestItems,
-                current = latestItems.indexOf(current),
-                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
-                onScrub = { index -> scope.launch { pagerState.scrollToPage(index) } },
+                pagerState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars)

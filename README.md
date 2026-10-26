@@ -20,8 +20,8 @@ header rows mark each month or year.
 
 **Detail** — swipe between photos (older to the left), pinch or double-tap to
 zoom, tap to hide everything but the photo, swipe down to go back. The film
-strip shows the photo among its five older and five newer neighbours; tap to
-jump, drag to scrub. Share opens the Android share sheet; delete moves the
+strip below runs through the whole timeline and moves along as you swipe;
+fling it to scrub, tap a thumbnail to jump. Share opens the Android share sheet; delete moves the
 item to the system trash, which empties itself after about 30 days. Videos
 play inline with sound.
 

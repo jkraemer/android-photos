@@ -14,7 +14,7 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 - New photos appear while the app is open.
 - Detail view: swipe between items (older to the left), pinch or double-tap
   to zoom, tap to hide everything but the photo, swipe down to go back.
-- Film strip under the photo with five older and five newer items; tap to
-  jump, drag to scrub.
+- Film strip under the photo that moves along as you swipe; fling it to
+  scrub through the timeline, tap a thumbnail to jump.
 - Share through the Android share sheet and move to the system trash.
 - Inline video playback with sound.

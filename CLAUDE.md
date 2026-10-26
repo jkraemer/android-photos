@@ -32,8 +32,8 @@ produces an unsigned APK.
 ## Module seam
 
 - **`core`** (plain Kotlin/JVM) decides: `TimelineGrid` (entries and headers
-  per `ZoomLevel`), `DateLabels`, `newestFullyVisible`, `filmStripWindow`,
-  `scrubTarget`, `neighbourAfterRemoval`, `MediaAccess`.
+  per `ZoomLevel`), `DateLabels`, `newestFullyVisible`, `stripScrollFor`,
+  `centredItem`, `neighbourAfterRemoval`, `MediaAccess`.
 - **`app`** touches the system: `MediaStoreRepository` (query + observer
   flow), `MediaThumbnailFetcher` (Coil, via `ContentResolver.loadThumbnail`),
   `MediaActions` (share, trash request), `PermissionGate`, `GridScreen`,

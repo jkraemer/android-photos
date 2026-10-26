@@ -5,13 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onChild
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -32,6 +31,7 @@ import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.item
 import net.jkraemer.photos.useFakeImages
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -159,35 +159,73 @@ class DetailScreenTest {
         showsItem(10)
     }
 
-    @Test fun `strip shows five older and five newer`() {
+    // Thumbnails are 36dp wide with 2dp gaps; at density 1 that is 38px a slot.
+    private val slotPitch = 38f
+
+    /** How far [id]'s thumbnail sits right of the strip's centre, in px. */
+    private fun offCentre(id: Long): Float {
+        val strip = compose.onNodeWithTag("film-strip").fetchSemanticsNode().boundsInRoot
+        return compose.onNodeWithTag("strip-$id").fetchSemanticsNode().boundsInRoot.center.x - strip.center.x
+    }
+
+    @Test fun `strip centres and marks the current item`() {
         open(10)
-        (5..15).forEach { compose.onNodeWithTag("strip-$it").assertExists() }
-        compose.onNodeWithTag("strip-4").assertDoesNotExist()
-        compose.onNodeWithTag("strip-16").assertDoesNotExist()
+        assertEquals(0f, offCentre(10), 1f)
         compose.onNodeWithTag("strip-current").onChild().assert(hasTestTag("strip-10"))
     }
 
-    @Test fun `strip at the oldest item has empty older slots`() {
+    @Test fun `strip centres the oldest item too`() {
         open(1)
-        (1..6).forEach { compose.onNodeWithTag("strip-$it").assertExists() }
-        compose.onAllNodesWithTag("strip-empty").assertCountEquals(5)
+        assertEquals(0f, offCentre(1), 1f)
     }
 
-    @Test fun `tapping a strip thumbnail jumps there`() {
+    @Test fun `strip moves with the finger while the photo is dragged`() {
         open(10)
-        compose.onNodeWithTag("strip-13").performClick()
+        // Half a page towards the newer item moves the strip half a slot.
+        compose.onNodeWithTag("pager").performTouchInput {
+            down(center)
+            moveBy(Offset(-width / 4f, 0f))
+            moveBy(Offset(-width / 4f, 0f))
+        }
         compose.waitForIdle()
+        assertEquals(-slotPitch / 2, offCentre(10), 4f)
+        compose.onNodeWithTag("pager").performTouchInput { up() }
+    }
+
+    @Test fun `tapping a strip thumbnail shows it at once and centres it`() {
+        open(10)
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("strip-13").performClick()
+        compose.mainClock.advanceTimeByFrame()
+        compose.mainClock.advanceTimeByFrame()
         showsItem(13)
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(0f, offCentre(13), 1f)
     }
 
     @Test fun `dragging the strip left scrubs newer`() {
         open(10)
-        // Slots are 36dp wide with 2dp gaps; at density 1 that is 38px each.
         compose.onNodeWithTag("film-strip").performTouchInput {
-            swipe(start = center, end = center - Offset(3.3f * 38f, 0f), durationMillis = 400)
+            swipe(start = center, end = center - Offset(3.3f * slotPitch, 0f), durationMillis = 1_000)
         }
         compose.waitForIdle()
         showsItem(13)
+        assertEquals(0f, offCentre(13), 1f)
+    }
+
+    @Test fun `flinging the strip keeps it rolling after release`() {
+        open(10)
+        compose.onNodeWithTag("film-strip").performTouchInput {
+            swipe(start = center, end = center - Offset(2f * slotPitch, 0f), durationMillis = 40)
+        }
+        compose.waitForIdle()
+        // The finger let go two slots on; momentum carries the strip further.
+        val shown = compose.onNodeWithTag("timestamp").fetchSemanticsNode()
+            .config[SemanticsProperties.Text].single().text
+        val shownId = hourly.first { labels.timestamp(it.takenAt) == shown }.id
+        assertTrue("landed on $shownId", shownId > 13)
+        assertEquals(0f, offCentre(shownId), 1f)
     }
 
     @Test fun `strip hides with the UI`() {
