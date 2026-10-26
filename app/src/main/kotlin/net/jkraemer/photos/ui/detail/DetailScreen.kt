@@ -217,6 +217,9 @@ fun DetailScreen(
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                 if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
                 panelFraction = (panelFraction - available.y / panelTravelPx).coerceAtLeast(0f)
+                // Pulled all the way shut, the panel leaves composition before
+                // any fling arrives to settle it, so it is closed here.
+                if (panelFraction == 0f) panelOpen = false
                 return Offset(0f, available.y)
             }
 

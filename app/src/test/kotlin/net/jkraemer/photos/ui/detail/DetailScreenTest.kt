@@ -416,6 +416,19 @@ class DetailScreenTest {
         assertEquals(emptyList<Long?>(), closed)
     }
 
+    @Test fun `slowly pulling the panel shut leaves swipe down closing the view`() {
+        open(10)
+        openPanel()
+        compose.onNodeWithTag("info-panel").performTouchInput {
+            swipe(start = Offset(centerX, top + 10f), end = Offset(centerX, 900f), durationMillis = 3_000)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("info-panel").assertDoesNotExist()
+        compose.onNodeWithTag("pager").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        assertEquals(listOf<Long?>(10), closed)
+    }
+
     @Test fun `panel stays open when the shown item is removed`() {
         open(10)
         openPanel()
