@@ -14,6 +14,7 @@ import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.item
 import net.jkraemer.photos.useFakeImages
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -49,5 +50,14 @@ class DetailScreenLandscapeTest {
         val panel = compose.onNodeWithTag("info-panel").fetchSemanticsNode().boundsInRoot
         assertTrue("pager $pager, panel $panel", pager.right <= panel.left + 1f)
         assertTrue("panel $panel", panel.width > 0f)
+    }
+
+    @Test fun `in landscape the panel's backing reaches the top, hiding the grid beneath`() {
+        compose.setContent {
+            DetailScreen(items, 10, labels, onClose = {}, actions = noActions, info = FakeInfoSource(), locationGranted = true)
+        }
+        compose.onNodeWithTag("pager").performTouchInput { swipeUp() }
+        compose.waitForIdle()
+        assertEquals(0f, compose.onNodeWithTag("info-panel").fetchSemanticsNode().boundsInRoot.top, 0.5f)
     }
 }

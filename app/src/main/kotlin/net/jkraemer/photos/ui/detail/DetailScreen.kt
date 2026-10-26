@@ -291,15 +291,18 @@ fun DetailScreen(
                 }
             }
         }
-        val panelPane: @Composable (Modifier) -> Unit = { paneModifier ->
+        // The pane's black reaches every edge so the grid underneath never shows;
+        // [contentPadding] only moves the cards.
+        val panelPane: @Composable (Modifier, Modifier) -> Unit = { paneModifier, contentPadding ->
             if (panelShown) {
                 Column(
                     paneModifier
                         .background(Color.Black)
+                        .testTag("info-panel")
                         .nestedScroll(panelOverscroll)
                         .verticalScroll(rememberScrollState())
-                        .windowInsetsPadding(WindowInsets.navigationBars)
-                        .testTag("info-panel"),
+                        .then(contentPadding)
+                        .windowInsetsPadding(WindowInsets.navigationBars),
                 ) {
                     InfoPanel(
                         shownInfo,
@@ -315,13 +318,16 @@ fun DetailScreen(
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
                 pagerPane(Modifier.fillMaxHeight().fillMaxWidth(1f - panelFraction * (1f - PHOTO_SHARE_WITH_PANEL_LANDSCAPE)))
-                // The top bar spans the whole width, so the panel starts below it.
-                panelPane(Modifier.weight(1f).fillMaxHeight().windowInsetsPadding(WindowInsets.statusBars).padding(top = 48.dp))
+                // The top bar spans the whole width, so the cards start below it.
+                panelPane(
+                    Modifier.weight(1f).fillMaxHeight(),
+                    Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = 48.dp),
+                )
             }
         } else {
             Column(Modifier.fillMaxSize()) {
                 pagerPane(Modifier.fillMaxWidth().fillMaxHeight(1f - panelFraction * (1f - PHOTO_SHARE_WITH_PANEL)))
-                panelPane(Modifier.weight(1f).fillMaxWidth())
+                panelPane(Modifier.weight(1f).fillMaxWidth(), Modifier)
             }
         }
 
