@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,6 +33,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -160,16 +163,22 @@ fun GridScreen(
                 .pinchToZoom { zoomIn, focal -> onPinchStep(zoomIn, focal) }
                 .testTag("grid"),
         ) {
-            // Each header sticks to the top while its month or year scrolls by,
-            // until the next one pushes it out; the cells between two headers
-            // form one run. The grid's item indices stay those of the entries.
+            // A header is a near-empty row: it still starts its month or year on
+            // a new row, while its label floats over the photos below it and
+            // sticks to the top until the next header takes over. The row is
+            // 1dp, not 0: on the device a zero-height item draws the label's
+            // backing but not its text. The cells
+            // between two headers form one run, so the grid's item indices stay
+            // those of the entries.
             val entries = current.grid.entries
             var start = 0
             while (start < entries.size) {
                 val entry = entries[start]
                 if (entry is GridEntry.Header) {
                     stickyHeader(key = "h-${current.items[entry.firstItemIndex].id}", contentType = GridEntry.Header::class) {
-                        HeaderLabel(labels.header(level, current.items[entry.firstItemIndex].takenAt).orEmpty())
+                        Box(Modifier.fillMaxWidth().height(1.dp).zIndex(1f).wrapContentHeight(Alignment.Top, unbounded = true)) {
+                            HeaderLabel(labels.header(level, current.items[entry.firstItemIndex].takenAt).orEmpty())
+                        }
                     }
                     start++
                     continue
@@ -212,10 +221,10 @@ fun GridScreen(
     }
 }
 
-/** A month or year headline; its half-transparent backing keeps it readable while it floats over photos. */
+/** A month or year headline; its half-transparent backing keeps it readable over the photos. */
 @Composable
 private fun HeaderLabel(text: String) {
-    Box(Modifier.padding(start = 8.dp, top = 16.dp, bottom = 6.dp)) {
+    Box(Modifier.padding(start = 4.dp, top = 4.dp)) {
         Text(
             text,
             Modifier

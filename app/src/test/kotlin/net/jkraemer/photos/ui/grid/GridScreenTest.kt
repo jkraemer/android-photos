@@ -97,6 +97,14 @@ class GridScreenTest {
         compose.onNodeWithTag("floating-date").assertDoesNotExist()
     }
 
+    @Test fun `SMALL draws the month label over its first photos instead of a row of its own`() {
+        show(daily(200), ZoomLevel.SMALL)
+        // daily(200) ends on 22 Oct, so id 179 is the first October photo.
+        val firstOfOctober = compose.onNodeWithTag("cell-179").fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithText("October 2026").fetchSemanticsNode().boundsInRoot
+        assertTrue("label at ${label.top}, first photo at ${firstOfOctober.top}", label.top >= firstOfOctober.top)
+    }
+
     @Test fun `SMALL keeps the month pinned at the top after its header row scrolled off`() {
         // 1,000 photos half an hour apart, all in October: far more rows than
         // fit, so at the bottom the month's header row is long out of view.
