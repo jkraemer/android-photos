@@ -133,17 +133,26 @@ class MediaStoreMetadataSource internal constructor(
             location = if (withLocation) exif.latLong?.let { geoPointOrNull(it[0], it[1]) } else null,
         )
 
-        /** Resolution, duration and location from the container; MediaStore's values where it has none. */
-        fun MediaMetadata.withVideo(retriever: MediaMetadataRetriever, withLocation: Boolean): MediaMetadata = copy(
-            width = retriever.intOrNull(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH) ?: width,
-            height = retriever.intOrNull(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT) ?: height,
-            durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
-            location = if (withLocation) {
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION)?.let(::parseIso6709)
-            } else {
-                null
-            },
-        )
+        /**
+         * Resolution as the video plays (a phone held upright records landscape
+         * frames marked as rotated), duration and location from the container;
+         * MediaStore's values where it has none.
+         */
+        fun MediaMetadata.withVideo(retriever: MediaMetadataRetriever, withLocation: Boolean): MediaMetadata {
+            val frameWidth = retriever.intOrNull(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH) ?: width
+            val frameHeight = retriever.intOrNull(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT) ?: height
+            val upright = retriever.intOrNull(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) in setOf(90, 270)
+            return copy(
+                width = if (upright) frameHeight else frameWidth,
+                height = if (upright) frameWidth else frameHeight,
+                durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(),
+                location = if (withLocation) {
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_LOCATION)?.let(::parseIso6709)
+                } else {
+                    null
+                },
+            )
+        }
 
         private fun Cursor.longOrNull(column: String): Long? =
             getColumnIndexOrThrow(column).let { if (isNull(it)) null else getLong(it) }

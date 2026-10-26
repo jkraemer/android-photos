@@ -81,6 +81,17 @@ class MetadataSourceTest {
         assertEquals(11.2312, m.location!!.longitude, 1e-4)
     }
 
+    @Test fun `a portrait video reads as tall`() {
+        val path = "/test/PXL_2.mp4"
+        ShadowMediaMetadataRetriever.addMetadata(path, MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH, "1920")
+        ShadowMediaMetadataRetriever.addMetadata(path, MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT, "1080")
+        ShadowMediaMetadataRetriever.addMetadata(path, MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION, "90")
+        val retriever = MediaMetadataRetriever().apply { setDataSource(path) }
+        val m = MediaMetadata("PXL_2.mp4", "video/mp4").withVideo(retriever, withLocation = false)
+        assertEquals(1080, m.width)
+        assertEquals(1920, m.height)
+    }
+
     @Test fun `video without location permission leaves it out`() =
         assertNull(MediaMetadata("PXL_1.mp4", "video/mp4").withVideo(videoRetriever(), withLocation = false).location)
 
