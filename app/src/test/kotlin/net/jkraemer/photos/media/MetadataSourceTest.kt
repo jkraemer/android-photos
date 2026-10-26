@@ -123,6 +123,20 @@ class MetadataSourceTest {
         assertNull(m.make)
     }
 
+    @Test fun `a file the EXIF parser chokes on keeps what MediaStore knows`() {
+        val broken = ExifOpener { _, _ ->
+            object : java.io.InputStream() {
+                override fun read(): Int = throw IllegalStateException("malformed segment")
+            }
+        }
+        val m = runBlocking { MediaStoreMetadataSource(context.contentResolver, context, broken).read(photo, withLocation = false) }
+        assertEquals("image/jpeg", m.mimeType)
+        assertNull(m.make)
+    }
+
+    @Test fun `a row without a name reads as an empty name`() =
+        assertEquals(MediaMetadata("", "image/jpeg"), baseOf(null, null, null, null, "DCIM/Camera/"))
+
     @Test fun `a video that cannot be opened keeps what MediaStore knows`() {
         val video = MediaItem(8, Instant.EPOCH, MediaKind.VIDEO, "video/mp4", 0)
         // What the real retriever throws for a file that is gone.

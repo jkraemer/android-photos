@@ -8,8 +8,9 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.provider.MediaStore.MediaColumns
 import androidx.exifinterface.media.ExifInterface
-import java.io.IOException
+import java.io.FileNotFoundException
 import java.io.InputStream
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import net.jkraemer.photos.core.MediaItem
@@ -39,9 +40,8 @@ class MediaStoreMetadataSource internal constructor(
         resolver,
         context,
         ExifOpener { uri, requireOriginal ->
-            checkNotNull(resolver.openInputStream(if (requireOriginal) MediaStore.setRequireOriginal(uri) else uri)) {
-                "No stream for $uri"
-            }
+            resolver.openInputStream(if (requireOriginal) MediaStore.setRequireOriginal(uri) else uri)
+                ?: throw FileNotFoundException("No stream for $uri")
         },
     )
 
@@ -55,27 +55,25 @@ class MediaStoreMetadataSource internal constructor(
         } ?: MediaMetadata(displayName = "", mimeType = item.mimeType)
         val withRaw = base.copy(hasRawOriginal = hasRawOriginal(base.displayName, relativePath))
         // Another app can delete the file between the query and the read (Immich
-        // freeing space); the panel then shows what MediaStore knew.
-        when (item.kind) {
-            MediaKind.IMAGE -> try {
-                orWithoutOriginal(withLocation) { original ->
+        // freeing space), and a malformed file can break the EXIF parser or the
+        // retriever (which reports a file it cannot open as a bare
+        // RuntimeException). The panel then shows what MediaStore knew.
+        try {
+            when (item.kind) {
+                MediaKind.IMAGE -> orWithoutOriginal(withLocation) { original ->
                     exifOpener.open(uri, original).use { withRaw.withExif(ExifInterface(it), original) }
                 }
-            } catch (_: IOException) {
-                withRaw
-            }
-            // The retriever reports a file it cannot open as IllegalArgumentException
-            // or a bare RuntimeException.
-            MediaKind.VIDEO -> try {
-                orWithoutOriginal(withLocation) { original ->
+                MediaKind.VIDEO -> orWithoutOriginal(withLocation) { original ->
                     MediaMetadataRetriever().use { retriever ->
                         retriever.setDataSource(context, if (original) MediaStore.setRequireOriginal(uri) else uri)
                         withRaw.withVideo(retriever, original)
                     }
                 }
-            } catch (_: RuntimeException) {
-                withRaw
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            withRaw
         }
     }
 
@@ -115,7 +113,7 @@ class MediaStoreMetadataSource internal constructor(
 
         /** The row [cursor] points at, as far as MediaStore knows it. */
         fun baseFrom(cursor: Cursor, mimeType: String): MediaMetadata = MediaMetadata(
-            displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaColumns.DISPLAY_NAME)),
+            displayName = cursor.getString(cursor.getColumnIndexOrThrow(MediaColumns.DISPLAY_NAME)) ?: "",
             mimeType = mimeType,
             sizeBytes = cursor.longOrNull(MediaColumns.SIZE),
             width = cursor.longOrNull(MediaColumns.WIDTH)?.toInt(),
