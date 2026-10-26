@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -93,15 +95,22 @@ class GridScreenTest {
 
     @Test fun `SMALL shows month headers and no floating label`() {
         show(daily(200), ZoomLevel.SMALL)
-        compose.onNodeWithText("October 2026").assertIsDisplayed()
+        compose.onNodeWithText("Oct 2026").assertIsDisplayed()
         compose.onNodeWithTag("floating-date").assertDoesNotExist()
+    }
+
+    @Test fun `SMALL headers show the year in a darker shade than the month`() {
+        show(daily(200), ZoomLevel.SMALL)
+        val text = compose.onNodeWithText("Oct 2026").fetchSemanticsNode().config[SemanticsProperties.Text].single()
+        val year = text.spanStyles.single { text.substring(it.start, it.end) == "2026" }
+        assertEquals(Color.LightGray, year.item.color)
     }
 
     @Test fun `SMALL draws the month label over its first photos instead of a row of its own`() {
         show(daily(200), ZoomLevel.SMALL)
         // daily(200) ends on 22 Oct, so id 179 is the first October photo.
         val firstOfOctober = compose.onNodeWithTag("cell-179").fetchSemanticsNode().boundsInRoot
-        val label = compose.onNodeWithText("October 2026").fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithText("Oct 2026").fetchSemanticsNode().boundsInRoot
         assertTrue("label at ${label.top}, first photo at ${firstOfOctober.top}", label.top >= firstOfOctober.top)
     }
 
@@ -111,7 +120,7 @@ class GridScreenTest {
         val october = (1..1000L).map { item(it, newest.minus(Duration.ofMinutes(30 * (1000 - it)))) }
         show(october, ZoomLevel.SMALL)
         val grid = compose.onNodeWithTag("grid").fetchSemanticsNode().boundsInRoot
-        val label = compose.onNodeWithText("October 2026").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithText("Oct 2026").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
         assertTrue("label at ${label.top}, grid at ${grid.top}", label.top - grid.top < 30f)
     }
 

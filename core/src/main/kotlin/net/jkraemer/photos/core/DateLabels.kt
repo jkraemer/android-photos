@@ -6,12 +6,16 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
+/** A header's text: a month or year [name], and the [year] a month belongs to, shown subdued. */
+data class Headline(val name: String, val year: String?)
+
 /** Every date string the app shows, formatted for the device [locale] in [zone]. */
 class DateLabels(locale: Locale, val zone: ZoneId) {
     private val day = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).withZone(zone)
-    // "LLLL" is the standalone month name, which is what a label on its own needs
+    // "LLLL" and "LLL" are the standalone month names, which is what a label on its own needs
     // (e.g. Polish "październik" rather than the genitive "października").
     private val month = DateTimeFormatter.ofPattern("LLLL yyyy", locale).withZone(zone)
+    private val shortMonth = DateTimeFormatter.ofPattern("LLL", locale).withZone(zone)
     private val year = DateTimeFormatter.ofPattern("yyyy", locale).withZone(zone)
     private val dateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
         .withLocale(locale).withZone(zone)
@@ -24,9 +28,9 @@ class DateLabels(locale: Locale, val zone: ZoneId) {
     }
 
     /** The text of a header row, or null at levels without headers. */
-    fun header(level: ZoomLevel, at: Instant): String? = when (level.dateContext) {
-        DateContext.MONTH_HEADERS -> month.format(at)
-        DateContext.YEAR_HEADERS -> year.format(at)
+    fun header(level: ZoomLevel, at: Instant): Headline? = when (level.dateContext) {
+        DateContext.MONTH_HEADERS -> Headline(shortMonth.format(at), year.format(at))
+        DateContext.YEAR_HEADERS -> Headline(year.format(at), null)
         DateContext.FLOATING_DAY, DateContext.FLOATING_MONTH -> null
     }
 

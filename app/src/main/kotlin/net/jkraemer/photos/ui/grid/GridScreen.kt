@@ -42,7 +42,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +56,7 @@ import kotlinx.coroutines.withContext
 import net.jkraemer.photos.GridAnchor
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.GridEntry
+import net.jkraemer.photos.core.Headline
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.TimelineGrid
@@ -177,7 +181,7 @@ fun GridScreen(
                 if (entry is GridEntry.Header) {
                     stickyHeader(key = "h-${current.items[entry.firstItemIndex].id}", contentType = GridEntry.Header::class) {
                         Box(Modifier.fillMaxWidth().height(1.dp).zIndex(1f).wrapContentHeight(Alignment.Top, unbounded = true)) {
-                            HeaderLabel(labels.header(level, current.items[entry.firstItemIndex].takenAt).orEmpty())
+                            HeaderLabel(labels.header(level, current.items[entry.firstItemIndex].takenAt)!!)
                         }
                     }
                     start++
@@ -223,10 +227,16 @@ fun GridScreen(
 
 /** A month or year headline; its half-transparent backing keeps it readable over the photos. */
 @Composable
-private fun HeaderLabel(text: String) {
+private fun HeaderLabel(headline: Headline) {
     Box(Modifier.padding(start = 4.dp, top = 4.dp)) {
         Text(
-            text,
+            buildAnnotatedString {
+                append(headline.name)
+                headline.year?.let {
+                    append(" ")
+                    withStyle(SpanStyle(color = Color.LightGray)) { append(it) }
+                }
+            },
             Modifier
                 .background(Color.Black.copy(alpha = 0.5f))
                 .padding(horizontal = 8.dp, vertical = 2.dp),

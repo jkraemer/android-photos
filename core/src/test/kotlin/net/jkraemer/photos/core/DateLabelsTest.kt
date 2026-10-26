@@ -25,9 +25,10 @@ class DateLabelsTest {
         assertNull(uk.floating(ZoomLevel.TINY, at))
     }
 
-    @Test fun `SMALL headers name the month, TINY the year`() {
-        assertEquals("October 2026", uk.header(ZoomLevel.SMALL, at))
-        assertEquals("2026", uk.header(ZoomLevel.TINY, at))
+    @Test fun `SMALL headers name the month short and its year, TINY the year`() {
+        assertEquals(Headline("Oct", "2026"), uk.header(ZoomLevel.SMALL, at))
+        assertEquals(Headline("Okt", "2026"), de.header(ZoomLevel.SMALL, at))
+        assertEquals(Headline("2026", year = null), uk.header(ZoomLevel.TINY, at))
         assertNull(uk.header(ZoomLevel.LARGE, at))
     }
 
