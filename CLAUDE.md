@@ -66,6 +66,11 @@ produces an unsigned APK.
   The system logs "A resource failed to call close" when it is finalized.
   This comes from the library; the app's own code doesn't cause it.
   Reported as https://github.com/saket/telephoto/issues/182.
+- Measure performance on a release build that is compiled. `adb install`
+  leaves the app uncompiled (`dumpsys package dexopt`: `run-from-apk`), so
+  Compose runs in the interpreter and a zoom-level change stalls for 100–300 ms.
+  Run `adb shell cmd package compile -m speed-profile -f net.jkraemer.photos`
+  first; Android does the same in the background on its own.
 - Robolectric attaches activities to the application's `ContextImpl`, so a
   leak of an activity through its `ContentResolver` cannot be reproduced
   there; check `adb shell dumpsys meminfo net.jkraemer.photos` (`Activities:`)
