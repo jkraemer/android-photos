@@ -8,6 +8,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.provider.MediaStore.MediaColumns
 import androidx.exifinterface.media.ExifInterface
+import java.io.IOException
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,15 +54,27 @@ class MediaStoreMetadataSource internal constructor(
             baseFrom(cursor, item.mimeType)
         } ?: MediaMetadata(displayName = "", mimeType = item.mimeType)
         val withRaw = base.copy(hasRawOriginal = hasRawOriginal(base.displayName, relativePath))
+        // Another app can delete the file between the query and the read (Immich
+        // freeing space); the panel then shows what MediaStore knew.
         when (item.kind) {
-            MediaKind.IMAGE -> orWithoutOriginal(withLocation) { original ->
-                exifOpener.open(uri, original).use { withRaw.withExif(ExifInterface(it), original) }
-            }
-            MediaKind.VIDEO -> orWithoutOriginal(withLocation) { original ->
-                MediaMetadataRetriever().use { retriever ->
-                    retriever.setDataSource(context, if (original) MediaStore.setRequireOriginal(uri) else uri)
-                    withRaw.withVideo(retriever, original)
+            MediaKind.IMAGE -> try {
+                orWithoutOriginal(withLocation) { original ->
+                    exifOpener.open(uri, original).use { withRaw.withExif(ExifInterface(it), original) }
                 }
+            } catch (_: IOException) {
+                withRaw
+            }
+            // The retriever reports a file it cannot open as IllegalArgumentException
+            // or a bare RuntimeException.
+            MediaKind.VIDEO -> try {
+                orWithoutOriginal(withLocation) { original ->
+                    MediaMetadataRetriever().use { retriever ->
+                        retriever.setDataSource(context, if (original) MediaStore.setRequireOriginal(uri) else uri)
+                        withRaw.withVideo(retriever, original)
+                    }
+                }
+            } catch (_: RuntimeException) {
+                withRaw
             }
         }
     }

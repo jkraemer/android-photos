@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.shadows.ShadowMediaMetadataRetriever
+import org.robolectric.shadows.util.DataSource
 
 @RunWith(RobolectricTestRunner::class)
 class MetadataSourceTest {
@@ -50,24 +51,17 @@ class MetadataSourceTest {
         assertEquals(base, base.withExif(bare, withLocation = true))
     }
 
-    @Test fun `maps MediaStore columns`() {
-        val cursor = MatrixCursor(MediaStoreMetadataSource.PROJECTION).apply {
-            addRow(arrayOf<Any?>("PXL_1.jpg", 2_959_304L, 4080, 3072, "DCIM/Camera/"))
-            moveToFirst()
-        }
-        assertEquals(
-            MediaMetadata("PXL_1.jpg", "image/jpeg", sizeBytes = 2_959_304, width = 4080, height = 3072),
-            MediaStoreMetadataSource.baseFrom(cursor, "image/jpeg"),
-        )
-    }
+    private fun baseOf(vararg row: Any?) = MatrixCursor(MediaStoreMetadataSource.PROJECTION)
+        .apply { addRow(row) }
+        .use { it.moveToFirst(); MediaStoreMetadataSource.baseFrom(it, "image/jpeg") }
 
-    @Test fun `null columns stay null`() {
-        val cursor = MatrixCursor(MediaStoreMetadataSource.PROJECTION).apply {
-            addRow(arrayOf<Any?>("PXL_1.jpg", null, null, null, "DCIM/Camera/"))
-            moveToFirst()
-        }
-        assertEquals(MediaMetadata("PXL_1.jpg", "image/jpeg"), MediaStoreMetadataSource.baseFrom(cursor, "image/jpeg"))
-    }
+    @Test fun `maps MediaStore columns`() = assertEquals(
+        MediaMetadata("PXL_1.jpg", "image/jpeg", sizeBytes = 2_959_304, width = 4080, height = 3072),
+        baseOf("PXL_1.jpg", 2_959_304L, 4080, 3072, "DCIM/Camera/"),
+    )
+
+    @Test fun `null columns stay null`() =
+        assertEquals(MediaMetadata("PXL_1.jpg", "image/jpeg"), baseOf("PXL_1.jpg", null, null, null, "DCIM/Camera/"))
 
     private fun videoRetriever(): MediaMetadataRetriever {
         val path = "/test/PXL_1.mp4"
@@ -120,6 +114,25 @@ class MetadataSourceTest {
         assertEquals(listOf(true, false), opener.requests)
         assertEquals("Google", m.make)
         assertNull(m.location)
+    }
+
+    @Test fun `a file gone before it is read keeps what MediaStore knows`() {
+        val gone = ExifOpener { _, _ -> throw java.io.FileNotFoundException("deleted by another app") }
+        val m = runBlocking { MediaStoreMetadataSource(context.contentResolver, context, gone).read(photo, withLocation = true) }
+        assertEquals("image/jpeg", m.mimeType)
+        assertNull(m.make)
+    }
+
+    @Test fun `a video that cannot be opened keeps what MediaStore knows`() {
+        val video = MediaItem(8, Instant.EPOCH, MediaKind.VIDEO, "video/mp4", 0)
+        // What the real retriever throws for a file that is gone.
+        ShadowMediaMetadataRetriever.addException(
+            DataSource.toDataSource(context, contentUriOf(video)),
+            IllegalArgumentException("setDataSource failed"),
+        )
+        val m = runBlocking { MediaStoreMetadataSource(context.contentResolver, context).read(video, withLocation = false) }
+        assertEquals("video/mp4", m.mimeType)
+        assertNull(m.durationMs)
     }
 }
 
