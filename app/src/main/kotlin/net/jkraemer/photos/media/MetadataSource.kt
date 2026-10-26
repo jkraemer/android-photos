@@ -12,10 +12,10 @@ import java.io.IOException
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.MediaMetadata
+import net.jkraemer.photos.core.geoPointOrNull
 import net.jkraemer.photos.core.parseIso6709
 import net.jkraemer.photos.core.rawOriginalName
 
@@ -132,7 +132,7 @@ class MediaStoreMetadataSource internal constructor(
             exposureTimeSeconds = exif.doubleOrNull(ExifInterface.TAG_EXPOSURE_TIME),
             iso = exif.intOrNull(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY),
             exposureBiasEv = exif.doubleOrNull(ExifInterface.TAG_EXPOSURE_BIAS_VALUE),
-            location = if (withLocation) exif.latLong?.let { GeoPoint(it[0], it[1]) } else null,
+            location = if (withLocation) exif.latLong?.let { geoPointOrNull(it[0], it[1]) } else null,
         )
 
         /** Resolution, duration and location from the container; MediaStore's values where it has none. */

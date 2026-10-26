@@ -6,6 +6,7 @@ import android.location.Geocoder
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.jkraemer.photos.core.GeoPoint
+import net.jkraemer.photos.core.geoPointOrNull
 import net.jkraemer.photos.core.placeName
 
 /**
@@ -17,6 +18,8 @@ class GeocoderPlaceNames(private val geocoder: Geocoder?) {
     /** The place at [point], or null when there is no geocoder, no address or an error. */
     suspend fun placeName(point: GeoPoint): String? {
         val geocoder = geocoder ?: return null
+        // The geocoder throws on a point off the globe; such a point has no name.
+        if (geoPointOrNull(point.latitude, point.longitude) == null) return null
         val address = suspendCancellableCoroutine<Address?> { continuation ->
             geocoder.getFromLocation(
                 point.latitude,

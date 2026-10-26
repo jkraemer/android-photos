@@ -40,4 +40,9 @@ class PlaceNamesTest {
         shadowOf(geocoder).setErrorMessage("geocoder unavailable")
         assertNull(runBlocking { GeocoderPlaceNames(geocoder).placeName(fehmarn) })
     }
+
+    @Test fun `a point the geocoder rejects means no name`() {
+        shadowOf(geocoder).setFromLocation(emptyList())
+        assertNull(runBlocking { GeocoderPlaceNames(geocoder).placeName(GeoPoint(91.0, 11.2312)) })
+    }
 }

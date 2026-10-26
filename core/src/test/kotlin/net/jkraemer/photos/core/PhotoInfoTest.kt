@@ -151,4 +151,14 @@ class PhotoInfoTest {
 
     @Test fun `flicking back up after a long drag down keeps it open`() =
         assertEquals(true, afterDrag(open = true, dragPx = 150f, velocityPx = -2000f))
+
+    @Test fun `only real coordinates make a point`() {
+        assertEquals(GeoPoint(54.5021, 11.2312), geoPointOrNull(54.5021, 11.2312))
+        assertEquals(GeoPoint(-90.0, 180.0), geoPointOrNull(-90.0, 180.0))
+        assertNull(geoPointOrNull(91.0, 11.2312))
+        assertNull(geoPointOrNull(54.5021, -180.5))
+        assertNull(geoPointOrNull(Double.NaN, Double.NaN))
+    }
+
+    @Test fun `out of range ISO 6709 locations are dropped`() = assertNull(parseIso6709("+91.0000+011.2312/"))
 }

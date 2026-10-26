@@ -9,6 +9,14 @@ import kotlin.math.roundToLong
 
 data class GeoPoint(val latitude: Double, val longitude: Double)
 
+/**
+ * A point from a file's own numbers, or null when they are not a place on
+ * Earth: edited or corrupt files carry NaN (GPS written as 0/0) or 91°, and
+ * the system geocoder throws on anything out of range.
+ */
+fun geoPointOrNull(latitude: Double, longitude: Double): GeoPoint? =
+    if (latitude in -90.0..90.0 && longitude in -180.0..180.0) GeoPoint(latitude, longitude) else null
+
 /** What a file says about itself; a field the file lacks is null. */
 data class MediaMetadata(
     val displayName: String,
@@ -184,7 +192,7 @@ private val ISO_6709 = Regex("""^([+-]\d+(?:\.\d+)?)([+-]\d+(?:\.\d+)?)""")
 fun parseIso6709(value: String): GeoPoint? {
     val match = ISO_6709.find(value) ?: return null
     val (lat, lng) = match.destructured
-    return GeoPoint(lat.toDouble(), lng.toDouble())
+    return geoPointOrNull(lat.toDouble(), lng.toDouble())
 }
 
 /** Google Camera stores a RAW shot as `….RAW-01.COVER.jpg` next to `….RAW-02.ORIGINAL.dng`. */
