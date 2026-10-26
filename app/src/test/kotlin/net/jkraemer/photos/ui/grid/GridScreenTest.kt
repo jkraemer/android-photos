@@ -31,6 +31,7 @@ import net.jkraemer.photos.core.ZoomLevel
 import net.jkraemer.photos.item
 import net.jkraemer.photos.useFakeImages
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -94,6 +95,16 @@ class GridScreenTest {
         show(daily(200), ZoomLevel.SMALL)
         compose.onNodeWithText("October 2026").assertIsDisplayed()
         compose.onNodeWithTag("floating-date").assertDoesNotExist()
+    }
+
+    @Test fun `SMALL keeps the month pinned at the top after its header row scrolled off`() {
+        // 1,000 photos half an hour apart, all in October: far more rows than
+        // fit, so at the bottom the month's header row is long out of view.
+        val october = (1..1000L).map { item(it, newest.minus(Duration.ofMinutes(30 * (1000 - it)))) }
+        show(october, ZoomLevel.SMALL)
+        val grid = compose.onNodeWithTag("grid").fetchSemanticsNode().boundsInRoot
+        val label = compose.onNodeWithText("October 2026").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue("label at ${label.top}, grid at ${grid.top}", label.top - grid.top < 30f)
     }
 
     @Test fun `TINY shows year headers`() {

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -161,30 +160,29 @@ fun GridScreen(
                 .pinchToZoom { zoomIn, focal -> onPinchStep(zoomIn, focal) }
                 .testTag("grid"),
         ) {
+            // Each header sticks to the top while its month or year scrolls by,
+            // until the next one pushes it out; the cells between two headers
+            // form one run. The grid's item indices stay those of the entries.
             val entries = current.grid.entries
-            items(
-                count = entries.size,
-                key = { index ->
-                    when (val entry = entries[index]) {
-                        is GridEntry.Header -> "h-${current.items[entry.firstItemIndex].id}"
-                        is GridEntry.Cell -> current.items[entry.itemIndex].id
+            var start = 0
+            while (start < entries.size) {
+                val entry = entries[start]
+                if (entry is GridEntry.Header) {
+                    stickyHeader(key = "h-${current.items[entry.firstItemIndex].id}", contentType = GridEntry.Header::class) {
+                        HeaderLabel(labels.header(level, current.items[entry.firstItemIndex].takenAt).orEmpty())
                     }
-                },
-                span = { index -> GridItemSpan(if (entries[index] is GridEntry.Header) maxLineSpan else 1) },
-                contentType = { index -> entries[index]::class },
-            ) { index ->
-                when (val entry = entries[index]) {
-                    is GridEntry.Header -> Text(
-                        labels.header(level, current.items[entry.firstItemIndex].takenAt).orEmpty(),
-                        Modifier.padding(start = 8.dp, top = 16.dp, bottom = 6.dp),
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp,
-                    )
-                    is GridEntry.Cell -> {
-                        val item = current.items[entry.itemIndex]
-                        Cell(item, level, thumbnailPx, onClick = { onOpen(item.id) })
-                    }
+                    start++
+                    continue
+                }
+                val first = start
+                while (start < entries.size && entries[start] is GridEntry.Cell) start++
+                items(
+                    count = start - first,
+                    key = { current.items[(entries[first + it] as GridEntry.Cell).itemIndex].id },
+                    contentType = { GridEntry.Cell::class },
+                ) { offset ->
+                    val item = current.items[(entries[first + offset] as GridEntry.Cell).itemIndex]
+                    Cell(item, level, thumbnailPx, onClick = { onOpen(item.id) })
                 }
             }
         }
@@ -211,6 +209,22 @@ fun GridScreen(
                 )
             }
         }
+    }
+}
+
+/** A month or year headline; its half-transparent backing keeps it readable while it floats over photos. */
+@Composable
+private fun HeaderLabel(text: String) {
+    Box(Modifier.padding(start = 8.dp, top = 16.dp, bottom = 6.dp)) {
+        Text(
+            text,
+            Modifier
+                .background(Color.Black.copy(alpha = 0.5f))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp,
+        )
     }
 }
 
