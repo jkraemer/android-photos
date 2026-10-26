@@ -63,6 +63,7 @@ import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.core.TimelineGrid
 import net.jkraemer.photos.core.VisibleCell
 import net.jkraemer.photos.core.ZoomLevel
+import net.jkraemer.photos.core.formatDuration
 import net.jkraemer.photos.core.newestFullyVisible
 import net.jkraemer.photos.media.MediaThumbnail
 import net.jkraemer.photos.media.contentUriOf
@@ -333,9 +334,4 @@ private fun newestVisibleItem(state: LazyGridState, model: GridModel): Int? {
         }
     }
     return newestFullyVisible(cells, layout.viewportStartOffset, layout.viewportEndOffset)
-}
-
-private fun formatDuration(ms: Long): String {
-    val seconds = ms / 1000
-    return "%d:%02d".format(seconds / 60, seconds % 60)
 }

@@ -33,4 +33,7 @@ class DateLabelsTest {
     }
 
     @Test fun `timestamp is local date and time`() = assertEquals("22 Oct 2026, 14:03", uk.timestamp(at))
+
+    @Test fun `info date is weekday, date and time`() =
+        assertEquals("Thursday · 22 Oct 2026 · 10:00", uk.infoDate(Instant.parse("2026-10-22T08:00:00Z")))
 }

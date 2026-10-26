@@ -17,6 +17,8 @@ class DateLabels(locale: Locale, val zone: ZoneId) {
     private val month = DateTimeFormatter.ofPattern("LLLL yyyy", locale).withZone(zone)
     private val shortMonth = DateTimeFormatter.ofPattern("LLL", locale).withZone(zone)
     private val year = DateTimeFormatter.ofPattern("yyyy", locale).withZone(zone)
+    private val weekday = DateTimeFormatter.ofPattern("EEEE", locale).withZone(zone)
+    private val time = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).withZone(zone)
     private val dateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
         .withLocale(locale).withZone(zone)
 
@@ -33,6 +35,9 @@ class DateLabels(locale: Locale, val zone: ZoneId) {
         DateContext.YEAR_HEADERS -> Headline(year.format(at), null)
         DateContext.FLOATING_DAY, DateContext.FLOATING_MONTH -> null
     }
+
+    /** Weekday, date and time for the info panel ("Thursday · 22 Oct 2026 · 10:00"). */
+    fun infoDate(at: Instant): String = "${weekday.format(at)} · ${day.format(at)} · ${time.format(at)}"
 
     /** Capture date and time for the detail view's top bar. */
     fun timestamp(at: Instant): String = dateTime.format(at)
