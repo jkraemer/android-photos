@@ -65,6 +65,7 @@ produces an unsigned APK.
   (`SubSamplingImageSource.exists()` never closes its `peek()` stream).
   The system logs "A resource failed to call close" when it is finalized.
   This comes from the library; the app's own code doesn't cause it.
+  Reported as https://github.com/saket/telephoto/issues/182.
 - Robolectric attaches activities to the application's `ContextImpl`, so a
   leak of an activity through its `ContentResolver` cannot be reproduced
   there; check `adb shell dumpsys meminfo net.jkraemer.photos` (`Activities:`)
