@@ -310,6 +310,9 @@ fun DetailScreen(
                         locationGranted,
                         onShowOnMap = actions::showOnMap,
                         onShowLocation = actions::showLocation,
+                        text = null,
+                        onRecognise = {},
+                        onOpenLink = {},
                     )
                 }
             }

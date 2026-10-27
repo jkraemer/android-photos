@@ -1,5 +1,6 @@
 package net.jkraemer.photos.ui.detail
 
+import android.content.ClipData
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,34 +16,62 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.InfoText
 import net.jkraemer.photos.core.coordinates
+import net.jkraemer.photos.core.findLinks
 
 private val CARD_COLOR = Color(0xFF1C1C1E)
 private val CARD_SHAPE = RoundedCornerShape(16.dp)
 private val SECONDARY = Color(0xFF98989F)
+
+/** Where reading a photo's text stands; [Done] with an empty text means the photo has none. */
+sealed interface TextRecognition {
+    data object NotRun : TextRecognition
+    data object Running : TextRecognition
+    data class Done(val text: String) : TextRecognition
+    data object Failed : TextRecognition
+}
 
 /**
  * What the file says about the item on screen, as dark cards in the style of
  * iOS Photos. A missing field leaves its line out; [info] of null (still
  * reading) draws nothing. The location needs ACCESS_MEDIA_LOCATION: without
  * [locationGranted] Android hides whether there is one, so the panel offers
- * to ask instead. The caller owns scrolling.
+ * to ask instead. [text] of null (a video) leaves out text recognition;
+ * links in recognised text go to [onOpenLink] as URIs. The caller owns
+ * scrolling.
  */
 @Composable
 fun InfoPanel(
@@ -51,6 +80,9 @@ fun InfoPanel(
     locationGranted: Boolean,
     onShowOnMap: (GeoPoint) -> Unit,
     onShowLocation: () -> Unit,
+    text: TextRecognition?,
+    onRecognise: () -> Unit,
+    onOpenLink: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (info == null) return
@@ -84,10 +116,23 @@ fun InfoPanel(
         }
         val location = info.location
         when {
-            !locationGranted -> LocationCard("Show location", Modifier.testTag("info-show-location"), onShowLocation)
-            location != null -> LocationCard(placeName ?: coordinates(location), Modifier.testTag("info-location")) {
+            !locationGranted -> ActionCard(Icons.Filled.LocationOn, "Show location", Modifier.testTag("info-show-location"), onShowLocation)
+            location != null -> ActionCard(Icons.Filled.LocationOn, placeName ?: coordinates(location), Modifier.testTag("info-location")) {
                 onShowOnMap(location)
             }
+        }
+        when (text) {
+            null -> {}
+            TextRecognition.NotRun -> ActionCard(Icons.Filled.Search, "Recognise text", Modifier.testTag("info-recognise-text"), onRecognise)
+            TextRecognition.Running -> Card(Modifier.testTag("info-text-running")) {
+                CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally), color = Color.White)
+            }
+            TextRecognition.Failed -> Card {
+                Text("Couldn't recognise the text", Modifier.testTag("info-text-failed"), color = SECONDARY)
+            }
+            is TextRecognition.Done ->
+                if (text.text.isEmpty()) Card { Text("No text found", Modifier.testTag("info-text-none"), color = SECONDARY) }
+                else RecognisedTextCard(text.text, onOpenLink)
         }
     }
 }
@@ -115,8 +160,35 @@ private fun ExposureRow(entries: List<String>) {
     }
 }
 
+/** The recognised text, selectable, with its phone numbers, emails and URLs as links. */
 @Composable
-private fun LocationCard(text: String, modifier: Modifier, onClick: () -> Unit) {
+private fun RecognisedTextCard(text: String, onOpenLink: (String) -> Unit) {
+    val openLink by rememberUpdatedState(onOpenLink)
+    val linked = remember(text) {
+        buildAnnotatedString {
+            append(text)
+            for (link in findLinks(text)) {
+                val annotation = LinkAnnotation.Clickable(
+                    link.target,
+                    TextLinkStyles(SpanStyle(color = Color.White, textDecoration = TextDecoration.Underline)),
+                ) { openLink(link.target) }
+                addLink(annotation, link.range.first, link.range.last + 1)
+            }
+        }
+    }
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    Card {
+        SelectionContainer { Text(linked, Modifier.testTag("info-text"), color = Color.White) }
+        TextButton(
+            onClick = { scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("Text", text))) } },
+            Modifier.align(Alignment.End).testTag("info-text-copy"),
+        ) { Text("Copy", color = Color.White) }
+    }
+}
+
+@Composable
+private fun ActionCard(icon: ImageVector, text: String, modifier: Modifier, onClick: () -> Unit) {
     Row(
         modifier
             .fillMaxWidth()
@@ -126,7 +198,7 @@ private fun LocationCard(text: String, modifier: Modifier, onClick: () -> Unit) 
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Color.White)
+        Icon(icon, contentDescription = null, tint = Color.White)
         Text(text, Modifier.padding(start = 12.dp), color = Color.White)
     }
 }

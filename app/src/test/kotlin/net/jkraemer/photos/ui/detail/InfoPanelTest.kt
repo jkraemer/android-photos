@@ -1,11 +1,13 @@
 package net.jkraemer.photos.ui.detail
 
+import android.content.ClipboardManager
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performFirstLinkClick
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
@@ -31,8 +33,15 @@ class InfoPanelTest {
     private val format = InfoFormat(Locale.UK)
     private val shownOnMap = mutableListOf<GeoPoint>()
     private var showLocationTaps = 0
+    private var recogniseTaps = 0
+    private val openedLinks = mutableListOf<String>()
 
-    private fun show(info: InfoText?, placeName: String? = null, locationGranted: Boolean = true) {
+    private fun show(
+        info: InfoText?,
+        placeName: String? = null,
+        locationGranted: Boolean = true,
+        text: TextRecognition? = TextRecognition.NotRun,
+    ) {
         compose.setContent {
             InfoPanel(
                 info,
@@ -40,6 +49,9 @@ class InfoPanelTest {
                 locationGranted,
                 onShowOnMap = { shownOnMap += it },
                 onShowLocation = { showLocationTaps++ },
+                text = text,
+                onRecognise = { recogniseTaps++ },
+                onOpenLink = { openedLinks += it },
             )
         }
         compose.waitForIdle()
@@ -102,5 +114,48 @@ class InfoPanelTest {
         show(format.text(pixelMetadata.copy(location = null), takenAt, labels))
         compose.onNodeWithTag("info-location").assertDoesNotExist()
         compose.onNodeWithTag("info-show-location").assertDoesNotExist()
+    }
+
+    @Test fun `offers to recognise text`() {
+        show(format.text(pixelMetadata, takenAt, labels))
+        compose.onNodeWithTag("info-recognise-text").performClick()
+        compose.onNodeWithText("Recognise text", useUnmergedTree = true).assertExists()
+        assertEquals(1, recogniseTaps)
+    }
+
+    @Test fun `no row without recognition`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = null)
+        compose.onNodeWithTag("info-recognise-text").assertDoesNotExist()
+    }
+
+    @Test fun `shows progress while running`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = TextRecognition.Running)
+        compose.onNodeWithTag("info-text-running").assertExists()
+        compose.onNodeWithTag("info-recognise-text").assertDoesNotExist()
+    }
+
+    @Test fun `shows the text and opens a tapped number`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = TextRecognition.Done("Call Cell No. 09957429369"))
+        compose.onNodeWithTag("info-text").assertTextEquals("Call Cell No. 09957429369")
+        compose.onNodeWithTag("info-text").performFirstLinkClick()
+        assertEquals(listOf("tel:09957429369"), openedLinks)
+    }
+
+    @Test fun `copy puts the whole text on the clipboard`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = TextRecognition.Done("A\nB"))
+        compose.onNodeWithTag("info-text-copy").performClick()
+        compose.waitForIdle()
+        val clipboard = compose.activity.getSystemService(ClipboardManager::class.java)
+        assertEquals("A\nB", clipboard.primaryClip!!.getItemAt(0).text.toString())
+    }
+
+    @Test fun `says when there is no text`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = TextRecognition.Done(""))
+        compose.onNodeWithTag("info-text-none").assertTextEquals("No text found")
+    }
+
+    @Test fun `says when recognition failed`() {
+        show(format.text(pixelMetadata, takenAt, labels), text = TextRecognition.Failed)
+        compose.onNodeWithTag("info-text-failed").assertTextEquals("Couldn't recognise the text")
     }
 }
