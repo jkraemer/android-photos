@@ -78,6 +78,23 @@ publishes a release with that changelog section as its notes.
   metadata, the geocoder, share, trash and map intents, the permission gate,
   and the Compose screens.
 
+## Verifying releases
+
+Release APKs are signed with a certificate whose SHA-256 fingerprint is:
+
+```
+7ce1acf13e343f199458e89f34ef68b605fc0cf92a58a79c476ce28395a79d3e
+```
+
+Check a downloaded APK with
+
+```sh
+apksigner verify --print-certs android-photos-*.apk
+```
+
+or on-device with [AppVerifier](https://github.com/soupslurpr/AppVerifier)
+(package `net.jkraemer.photos`).
+
 ## License
 
 [GPL-3.0](LICENSE)
