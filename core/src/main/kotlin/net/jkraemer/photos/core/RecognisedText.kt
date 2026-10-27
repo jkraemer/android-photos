@@ -75,3 +75,9 @@ private fun phoneParts(text: String, range: IntRange): List<IntRange> {
 /** OCR output without trailing spaces, with at most one blank line in a row, trimmed. */
 fun cleanRecognisedText(raw: String): String =
     raw.lines().joinToString("\n") { it.trimEnd() }.replace(Regex("\n{3,}"), "\n\n").trim()
+
+/** [width] × [height] shrunk so the longer edge is at most [longEdge], keeping the aspect ratio. */
+fun scaledToLongEdge(width: Int, height: Int, longEdge: Int): Pair<Int, Int> {
+    val scale = minOf(1.0, longEdge.toDouble() / maxOf(width, height))
+    return Math.round(width * scale).toInt() to Math.round(height * scale).toInt()
+}

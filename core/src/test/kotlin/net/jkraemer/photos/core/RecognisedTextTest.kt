@@ -57,4 +57,10 @@ class RecognisedTextTest {
 
     @Test fun `cleaning whitespace only gives an empty text`() =
         assertEquals("", cleanRecognisedText(" \n \n"))
+
+    @Test fun `scales the long edge down`() = assertEquals(3000 to 2250, scaledToLongEdge(4032, 3024, 3000))
+
+    @Test fun `scales portrait by its height`() = assertEquals(2250 to 3000, scaledToLongEdge(3024, 4032, 3000))
+
+    @Test fun `never scales up`() = assertEquals(1200 to 900, scaledToLongEdge(1200, 900, 3000))
 }
