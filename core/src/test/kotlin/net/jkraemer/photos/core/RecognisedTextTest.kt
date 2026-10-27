@@ -37,6 +37,21 @@ class RecognisedTextTest {
         links("4:30 AM 12:00 PM 10:30 22.10.2026 2025 - 2026 9,99 € 79098 Freiburg"),
     )
 
+    @Test fun `dates and time ranges with a leading zero are not phone numbers`() = assertEquals(
+        emptyList<Pair<String, String>>(),
+        listOf("01/02/2026", "09/15/2026", "05-11-2026", "0800-1700", "0800 - 1700").flatMap(::links),
+    )
+
+    @Test fun `a number stops before the next figure on its line`() = assertEquals(
+        listOf("09957429363" to "tel:09957429363", "0761 123456" to "tel:0761123456"),
+        links("5:00 AM 09957429363 6:30 AM\nTel. 0761 123456 10 - 18 Uhr"),
+    )
+
+    @Test fun `a number after an unrelated figure is still found`() = assertEquals(
+        listOf("09957429363" to "tel:09957429363", "09177107080" to "tel:09177107080"),
+        links("Room 3 09957429363\n09177107080 2025 - 2026"),
+    )
+
     @Test fun `too short or too long is not a phone number`() =
         assertEquals(emptyList<Pair<String, String>>(), links("0761 12 and 0123456789012345678"))
 
