@@ -46,6 +46,8 @@ import net.jkraemer.photos.media.MediaStoreMetadataSource
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
+import net.jkraemer.photos.media.Tessdata
+import net.jkraemer.photos.media.TesseractTextRecognizer
 import net.jkraemer.photos.media.mapIntent
 import net.jkraemer.photos.media.shareIntent
 import net.jkraemer.photos.media.trashRequest
@@ -143,6 +145,7 @@ class MainActivity : ComponentActivity() {
                     onClose = viewModel::close,
                     actions = detailActions,
                     info = infoSource,
+                    text = textRecognizer,
                     locationGranted = locationGranted,
                 )
             }
@@ -185,6 +188,15 @@ class MainActivity : ComponentActivity() {
                 LocationAsk.NOTHING -> {}
             }
         }
+
+        override fun openLink(uri: String) {
+            // Viewing a tel: URI opens the dialer with the number; it never calls.
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+            } catch (_: ActivityNotFoundException) {
+                Toast.makeText(this@MainActivity, "No app for this link", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private val infoSource by lazy {
@@ -195,6 +207,15 @@ class MainActivity : ComponentActivity() {
             override suspend fun metadata(item: MediaItem, withLocation: Boolean) = metadata.read(item, withLocation)
             override suspend fun placeName(point: GeoPoint) = places.placeName(point)
         }
+    }
+
+    private val textRecognizer by lazy {
+        // Application objects only, as for infoSource.
+        val updatedAt = packageManager.getPackageInfo(packageName, 0).lastUpdateTime
+        TesseractTextRecognizer(
+            applicationContext.contentResolver,
+            Tessdata(applicationContext.assets, applicationContext.filesDir, updatedAt),
+        )
     }
 
     override fun onResume() {

@@ -9,6 +9,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 import net.jkraemer.photos.FakeInfoSource
+import net.jkraemer.photos.FakeTextRecognizer
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
@@ -36,13 +37,14 @@ class DetailScreenLandscapeTest {
         override fun showOnMap(point: GeoPoint) {}
         override fun panelOpened() {}
         override fun showLocation() {}
+        override fun openLink(uri: String) {}
     }
 
     @Before fun images() = useFakeImages()
 
     @Test fun `in landscape the panel sits right of the photo`() {
         compose.setContent {
-            DetailScreen(items, 10, labels, onClose = {}, actions = noActions, info = FakeInfoSource(), locationGranted = true)
+            DetailScreen(items, 10, labels, onClose = {}, actions = noActions, info = FakeInfoSource(), text = FakeTextRecognizer(), locationGranted = true)
         }
         compose.onNodeWithTag("pager").performTouchInput { swipeUp() }
         compose.waitForIdle()
@@ -54,7 +56,7 @@ class DetailScreenLandscapeTest {
 
     @Test fun `in landscape the panel's backing reaches the top, hiding the grid beneath`() {
         compose.setContent {
-            DetailScreen(items, 10, labels, onClose = {}, actions = noActions, info = FakeInfoSource(), locationGranted = true)
+            DetailScreen(items, 10, labels, onClose = {}, actions = noActions, info = FakeInfoSource(), text = FakeTextRecognizer(), locationGranted = true)
         }
         compose.onNodeWithTag("pager").performTouchInput { swipeUp() }
         compose.waitForIdle()

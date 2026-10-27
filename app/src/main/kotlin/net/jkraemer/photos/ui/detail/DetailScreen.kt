@@ -67,6 +67,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import coil3.request.ImageRequest
 import coil3.request.Options
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.distinctUntilChanged
 import me.saket.telephoto.zoomable.ZoomSpec
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
@@ -82,6 +83,7 @@ import net.jkraemer.photos.core.MediaMetadata
 import net.jkraemer.photos.core.neighbourAfterRemoval
 import net.jkraemer.photos.core.panelOpenAfterDrag
 import net.jkraemer.photos.media.MediaThumbnailKeyer
+import net.jkraemer.photos.media.TextRecognizer
 import net.jkraemer.photos.media.contentUriOf
 
 /** What the detail view's buttons do with the item on screen. */
@@ -95,6 +97,9 @@ interface DetailActions {
 
     /** The panel's "Show location" row was tapped. */
     fun showLocation()
+
+    /** A link in recognised text was tapped: a `tel:`, `mailto:` or `https:` URI. */
+    fun openLink(uri: String)
 }
 
 /** Where the info panel gets an item's metadata and a place's name. */
@@ -127,6 +132,7 @@ fun DetailScreen(
     onClose: (lastViewedId: Long?) -> Unit,
     actions: DetailActions,
     info: InfoSource,
+    text: TextRecognizer,
     locationGranted: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -239,6 +245,28 @@ fun DetailScreen(
         }
         val placeName = place?.takeIf { it.first == location }?.second
 
+        // Text is read only when asked for, and the request lasts while its
+        // item stays on screen with the panel out: paging away or closing the
+        // panel drops it, which cancels a run still going.
+        var textRequested by remember(current.id, panelShown) { mutableStateOf(false) }
+        val recognised by produceState<Pair<Long, TextRecognition>?>(null, current.id, textRequested) {
+            if (textRequested) {
+                value = current.id to TextRecognition.Running
+                value = current.id to try {
+                    TextRecognition.Done(text.recognise(current))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    TextRecognition.Failed
+                }
+            }
+        }
+        val shownText = when {
+            current.kind != MediaKind.IMAGE -> null
+            !textRequested -> TextRecognition.NotRun
+            else -> recognised?.takeIf { it.first == current.id }?.second ?: TextRecognition.Running
+        }
+
         val pagerPane: @Composable (Modifier) -> Unit = { paneModifier ->
             HorizontalPager(
                 state = pagerState,
@@ -310,9 +338,9 @@ fun DetailScreen(
                         locationGranted,
                         onShowOnMap = actions::showOnMap,
                         onShowLocation = actions::showLocation,
-                        text = null,
-                        onRecognise = {},
-                        onOpenLink = {},
+                        text = shownText,
+                        onRecognise = { textRequested = true },
+                        onOpenLink = actions::openLink,
                     )
                 }
             }

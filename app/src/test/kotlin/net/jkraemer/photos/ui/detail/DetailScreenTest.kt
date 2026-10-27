@@ -19,6 +19,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performFirstLinkClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
@@ -29,11 +31,13 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 import net.jkraemer.photos.FakeInfoSource
+import net.jkraemer.photos.FakeTextRecognizer
 import net.jkraemer.photos.core.DateLabels
 import net.jkraemer.photos.core.GeoPoint
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.MediaKind
 import net.jkraemer.photos.item
+import net.jkraemer.photos.media.TextRecognizer
 import net.jkraemer.photos.pixelMetadata
 import net.jkraemer.photos.useFakeImages
 import org.junit.Assert.assertEquals
@@ -60,6 +64,7 @@ class DetailScreenTest {
         override fun showOnMap(point: GeoPoint) {}
         override fun panelOpened() {}
         override fun showLocation() {}
+        override fun openLink(uri: String) {}
     }
 
     @Before fun images() = useFakeImages()
@@ -72,18 +77,21 @@ class DetailScreenTest {
     private val shownOnMap = mutableListOf<GeoPoint>()
     private var panelOpenings = 0
     private var showLocationTaps = 0
+    private val openedLinks = mutableListOf<String>()
     private val recordingActions = object : DetailActions {
         override fun share(item: MediaItem) { shared += item.id }
         override fun trash(item: MediaItem) { trashed += item.id }
         override fun showOnMap(point: GeoPoint) { shownOnMap += point }
         override fun panelOpened() { panelOpenings++ }
         override fun showLocation() { showLocationTaps++ }
+        override fun openLink(uri: String) { openedLinks += uri }
     }
 
     private fun open(
         id: Long,
         actions: DetailActions = noActions,
         info: InfoSource = FakeInfoSource(),
+        text: TextRecognizer = FakeTextRecognizer(),
         locationGranted: Boolean = true,
     ) {
         compose.setContent {
@@ -94,6 +102,7 @@ class DetailScreenTest {
                 onClose = { closed += it },
                 actions = actions,
                 info = info,
+                text = text,
                 locationGranted = locationGranted,
             )
         }
@@ -374,6 +383,79 @@ class DetailScreenTest {
             assertTrue("showed $files", "item-10.jpg" !in files)
         }
         showsFile(11)
+    }
+
+    private fun recogniseText() {
+        compose.onNodeWithTag("info-recognise-text").performScrollTo().performClick()
+        compose.waitForIdle()
+    }
+
+    @Test fun `recognises the photo's text on demand`() {
+        open(10)
+        openPanel()
+        recogniseText()
+        compose.onNodeWithTag("info-text").assertTextEquals("Text of 10")
+    }
+
+    @Test fun `no recognise row on a video`() {
+        items = hourly + item(21, start.plusSeconds(3600 * 21), MediaKind.VIDEO, durationMs = 5_000)
+        open(21)
+        openPanel()
+        showsFile(21)
+        compose.onNodeWithTag("info-recognise-text").assertDoesNotExist()
+    }
+
+    @Test fun `a failed recognition says so`() {
+        open(10, text = FakeTextRecognizer(fail = true))
+        openPanel()
+        recogniseText()
+        compose.onNodeWithTag("info-text-failed").assertExists()
+    }
+
+    @Test fun `paging away and back offers the row again`() {
+        open(10)
+        openPanel()
+        recogniseText()
+        compose.onNodeWithTag("pager").performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("pager").performTouchInput { swipeRight() }
+        compose.waitForIdle()
+        showsFile(10)
+        compose.onNodeWithTag("info-recognise-text").assertExists()
+        compose.onNodeWithTag("info-text").assertDoesNotExist()
+    }
+
+    @Test fun `a slow result never shows on the next photo`() {
+        open(10, text = FakeTextRecognizer(delayFor = { if (it.id == 10L) 5_000 else 0 }))
+        openPanel()
+        recogniseText()
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("pager").performTouchInput { swipeLeft() }
+        repeat(60) {
+            compose.mainClock.advanceTimeBy(100)
+            compose.onNodeWithTag("info-text").assertDoesNotExist()
+        }
+        showsFile(11)
+        compose.onNodeWithTag("info-recognise-text").assertExists()
+    }
+
+    @Test fun `closing the panel discards the text`() {
+        open(10)
+        openPanel()
+        recogniseText()
+        compose.onNodeWithTag("pager").performTouchInput { swipeDown() }
+        compose.waitForIdle()
+        openPanel()
+        compose.onNodeWithTag("info-recognise-text").assertExists()
+        compose.onNodeWithTag("info-text").assertDoesNotExist()
+    }
+
+    @Test fun `a tapped link goes to the actions`() {
+        open(10, recordingActions, text = FakeTextRecognizer(text = { "Call 09957429369" }))
+        openPanel()
+        recogniseText()
+        compose.onNodeWithTag("info-text").performScrollTo().performFirstLinkClick()
+        assertEquals(listOf("tel:09957429369"), openedLinks)
     }
 
     @Test fun `tapping the photo while open hides the top bar but keeps the panel`() {
