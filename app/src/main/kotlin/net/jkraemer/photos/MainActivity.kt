@@ -46,8 +46,7 @@ import net.jkraemer.photos.media.MediaStoreMetadataSource
 import net.jkraemer.photos.media.MediaStoreRepository
 import net.jkraemer.photos.media.MediaThumbnailFetcher
 import net.jkraemer.photos.media.MediaThumbnailKeyer
-import net.jkraemer.photos.media.Tessdata
-import net.jkraemer.photos.media.TesseractTextRecognizer
+import net.jkraemer.photos.media.MlKitTextRecognizer
 import net.jkraemer.photos.media.mapIntent
 import net.jkraemer.photos.media.shareIntent
 import net.jkraemer.photos.media.trashRequest
@@ -209,14 +208,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private val textRecognizer by lazy {
-        // Application objects only, as for infoSource.
-        val updatedAt = packageManager.getPackageInfo(packageName, 0).lastUpdateTime
-        TesseractTextRecognizer(
-            applicationContext.contentResolver,
-            Tessdata(applicationContext.assets, applicationContext.filesDir, updatedAt),
-        )
-    }
+    // Application objects only, as for infoSource.
+    private val textRecognizer by lazy { MlKitTextRecognizer(applicationContext.contentResolver) }
 
     override fun onResume() {
         super.onResume()

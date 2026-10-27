@@ -5,7 +5,7 @@ import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.media.TextRecognizer
 
 /**
- * Stands in for Tesseract: answers with [text] after [delayFor]
+ * Stands in for ML Kit: answers with [text] after [delayFor]
  * milliseconds, or throws when [fail] is set.
  */
 class FakeTextRecognizer(

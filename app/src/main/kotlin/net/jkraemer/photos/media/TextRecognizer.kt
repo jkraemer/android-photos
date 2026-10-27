@@ -3,11 +3,13 @@ package net.jkraemer.photos.media
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
-import com.googlecode.tesseract.android.TessBaseAPI
-import kotlinx.coroutines.CancellationException
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.cleanRecognisedText
@@ -19,38 +21,27 @@ interface TextRecognizer {
     suspend fun recognise(item: MediaItem): String
 }
 
-// Long enough for small print on a whole flyer, short enough to keep a run to seconds.
+// Long enough for small print on a whole flyer, short enough to keep a run under a second.
 private const val LONG_EDGE = 3000
 
-/** Tesseract on the German and English models; runs off the main thread and stops when cancelled. */
-class TesseractTextRecognizer(private val resolver: ContentResolver, private val tessdata: Tessdata) : TextRecognizer {
+/**
+ * ML Kit's bundled Latin model, run on the phone. Its task cannot be
+ * cancelled; a cancelled run (under a second) finishes and is ignored.
+ */
+class MlKitTextRecognizer(private val resolver: ContentResolver) : TextRecognizer {
     override suspend fun recognise(item: MediaItem): String = withContext(Dispatchers.Default) {
-        val dir = tessdata.install()
-        val bitmap = decode(item)
-        val api = TessBaseAPI()
-        try {
-            check(api.init(dir.path, Tessdata.LANGUAGES)) { "Tesseract could not load ${Tessdata.LANGUAGES} from $dir" }
-            api.pageSegMode = TessBaseAPI.PageSegMode.PSM_AUTO
-            api.setImage(bitmap)
-            bitmap.recycle()
-            // Returns only once the native run has, so recycle() never pulls the engine from under it.
-            coroutineScope {
-                // getHOCRText is the only call stop() interrupts; getUTF8Text then returns its result.
-                val run = async { api.getHOCRText(0) }
-                try {
-                    run.await()
-                } catch (e: CancellationException) {
-                    api.stop()
-                    throw e
-                }
+        val image = InputImage.fromBitmap(decode(item), 0)
+        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS).use { client ->
+            val text = suspendCancellableCoroutine { result ->
+                client.process(image)
+                    .addOnSuccessListener { result.resume(it.text) }
+                    .addOnFailureListener { result.resumeWithException(it) }
             }
-            cleanRecognisedText(api.getUTF8Text().orEmpty())
-        } finally {
-            api.recycle()
+            cleanRecognisedText(text)
         }
     }
 
-    /** The photo upright (ImageDecoder applies EXIF orientation), scaled down, in the only format Tesseract takes. */
+    /** The photo upright (ImageDecoder applies EXIF orientation), scaled down, in the format ML Kit prefers. */
     private fun decode(item: MediaItem): Bitmap {
         val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, contentUriOf(item))) { decoder, info, _ ->
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
