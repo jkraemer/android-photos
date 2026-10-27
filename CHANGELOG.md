@@ -7,9 +7,9 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 ### Added
 
 - "Recognise text" in a photo's info panel reads the text in the photo
-  (German and English, on the phone with Tesseract) and shows it there to
-  select or copy. Phone numbers open the dialer, email addresses the mail
-  app, links the browser.
+  and shows it there to select or copy. Phone numbers open the dialer,
+  email addresses the mail app, links the browser. Recognition runs on the
+  phone with ML Kit (Latin script); its usage statistics are never sent.
 
 ### Changed
 

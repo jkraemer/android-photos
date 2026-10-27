@@ -41,7 +41,7 @@ produces an unsigned APK.
   flow), `MediaThumbnailFetcher` (Coil, via `ContentResolver.loadThumbnail`),
   `MediaActions` (share, trash request, map intent), `MediaStoreMetadataSource`
   (MediaStore + EXIF + video container), `GeocoderPlaceNames`,
-  `Tessdata` (models from assets to files), `TesseractTextRecognizer`,
+  `MlKitTextRecognizer`,
   `PermissionGate`, `GridScreen`, `DetailScreen`, `FilmStrip`, `InfoPanel`,
   `VideoPage`. `MainActivity` is the composition
   root; the detail view overlays the grid so the grid keeps its scroll state.
@@ -67,16 +67,16 @@ produces an unsigned APK.
 - **Locations need `ACCESS_MEDIA_LOCATION` and `setRequireOriginal`.**
   Without both, Android strips GPS from EXIF and video metadata; a revoked
   permission makes the original read throw `SecurityException`.
-- **Tesseract's models are downloaded at build time, not committed.**
-  `downloadTessdata` in `app/build.gradle.kts` fetches `deu`/`eng` from
-  `tessdata_best` at a pinned commit, checks SHA-256, and adds them as
-  generated assets (stored uncompressed). Tesseract reads only files, so
-  `Tessdata` copies them to `filesDir` on first use.
-- **JitPack serves Tesseract4Android and nothing else** (`exclusiveContent`
-  in `settings.gradle.kts`). The APK is `arm64-v8a` only.
-- **Only `getHOCRText` can be stopped.** `TessBaseAPI.stop()` does not
-  interrupt `getUTF8Text`, so the recogniser runs `getHOCRText` and reads
-  the UTF-8 result afterwards; `recycle()` waits for the native call.
+- **ML Kit's usage logging is stripped in the manifest.** ML Kit uploads
+  `FIREBASE_ML_SDK` events through Google DataTransport to
+  `firebaselogging.googleapis.com`, with no opt-out. `AndroidManifest.xml`
+  removes the CCT backend meta-data, `JobInfoSchedulerService`,
+  `AlarmManagerSchedulerBroadcastReceiver` and the `ACCESS_NETWORK_STATE`/
+  `WAKE_LOCK` permissions; `TelemetryTest` pins each. After an ML Kit
+  upgrade, check on the device: `setprop log.tag.TransportRuntime VERBOSE`,
+  run OCR, expect "Transport backend 'cct' is not registered" and no
+  DataTransport job in `dumpsys jobscheduler`.
+- **The APK is `arm64-v8a` only**, for the size of ML Kit's native library.
 - **The detail view follows its item by id.** Other apps (Immich freeing
   space) remove items while it is open; it then lands on the older neighbour.
 

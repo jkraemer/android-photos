@@ -35,9 +35,12 @@ system geocoder requires it, so turning the app's network access off just
 leaves coordinates.
 
 **Text** — in a photo's info panel, "Recognise text" reads the text in the
-photo (German and English, with Tesseract, on the phone) and shows it there:
-select and copy parts, copy all of it, or tap a phone number, email address
-or link to open the dialer, mail app or browser.
+photo and shows it there: select and copy parts, copy all of it, or tap a
+phone number, email address or link to open the dialer, mail app or browser.
+Recognition runs on the phone, also offline, with Google's ML Kit (Latin
+script, so German and English among others). ML Kit would upload usage
+statistics to Google; the app strips that upload path, so nothing leaves the
+phone.
 
 ## Requirements
 
@@ -46,14 +49,12 @@ or link to open the dialer, mail app or browser.
   app asks you to change that in its settings.
 - Access to photo locations, asked for when you first open the info panel;
   without it the panel shows everything but the place.
-- A 64-bit ARM phone (`arm64-v8a`): the APK carries Tesseract's native code for nothing else.
+- A 64-bit ARM phone (`arm64-v8a`): the APK carries ML Kit's native code for nothing else.
 - Developed against a Pixel on GrapheneOS with Google Camera.
 
 ## Building
 
-JDK 21 and the Android SDK, then (the first build downloads Tesseract's
-German and English models, about 24 MB, from `tesseract-ocr/tessdata_best`
-at a pinned commit and checks their SHA-256 sums):
+JDK 21 and the Android SDK, then:
 
 ```sh
 ./gradlew assembleDebug
@@ -84,7 +85,7 @@ publishes a release with that changelog section as its notes.
   testable on the JVM.
 - **app** — everything that touches the system: the MediaStore query and
   observer, thumbnails through MediaStore's own cache, EXIF and video
-  metadata, the geocoder, text recognition with Tesseract, share, trash, map
+  metadata, the geocoder, text recognition with ML Kit, share, trash, map
   and link intents, the permission gate, and the Compose screens.
 
 ## Verifying releases
