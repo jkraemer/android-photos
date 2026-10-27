@@ -67,18 +67,25 @@ produces an unsigned APK.
 - **Locations need `ACCESS_MEDIA_LOCATION` and `setRequireOriginal`.**
   Without both, Android strips GPS from EXIF and video metadata; a revoked
   permission makes the original read throw `SecurityException`.
-- **ML Kit's usage logging is stripped in the manifest.** ML Kit uploads
-  `FIREBASE_ML_SDK` events through Google DataTransport to
-  `firebaselogging.googleapis.com`, with no opt-out. `AndroidManifest.xml`
-  removes the CCT backend meta-data, `JobInfoSchedulerService`,
-  `AlarmManagerSchedulerBroadcastReceiver`; `TelemetryTest` allowlists the
-  merged manifest's services, receivers and providers, so a new one fails
-  until reviewed. ML Kit also reports each run to Play services over IPC
-  (`TelemetryLogging`, "mlkit:vision"); GrapheneOS makes Play services
-  force-queryable, so the manifest cannot stop that. After an ML Kit
-  upgrade, check on the device: `setprop log.tag.TransportRuntime VERBOSE`,
-  run OCR, expect "Transport backend 'cct' is not registered" and no
-  DataTransport job in `dumpsys jobscheduler`.
+- **ML Kit's telemetry is stripped in two places**, with no opt-out offered:
+  - It uploads `FIREBASE_ML_SDK` events through Google DataTransport to
+    `firebaselogging.googleapis.com`. `AndroidManifest.xml` removes the CCT
+    backend meta-data, `JobInfoSchedulerService` and
+    `AlarmManagerSchedulerBroadcastReceiver`; `TelemetryTest` allowlists the
+    merged manifest's services, receivers and providers, so a new one fails
+    until reviewed.
+  - It reports each run to Play services over IPC (`TelemetryLogging`,
+    "mlkit:vision"); GrapheneOS makes Play services force-queryable, so only
+    code removal helps. The release build runs R8 (`-dontobfuscate`):
+    `proguard-rules.pro` drops ML Kit's wrapper `zzue.zzc` (Google's
+    obfuscated name) and Play services' `TelemetryLoggingClient.log`, and a
+    `-checkdiscard` fails `assembleRelease` if any send survives, e.g. after
+    an upgrade renames `zzue`. Unit tests run on debug and never see R8's
+    output, so smoke-test a release build on the phone after dependency bumps.
+  - After an ML Kit upgrade, check on the device: `setprop
+    log.tag.TransportRuntime VERBOSE`, run OCR, expect "Transport backend
+    'cct' is not registered", no DataTransport job in `dumpsys jobscheduler`,
+    and no `common.telemetry.service.START` bind in logcat after the run.
 - **The APK is `arm64-v8a` only**, for the size of ML Kit's native library.
 - **The detail view follows its item by id.** Other apps (Immich freeing
   space) remove items while it is open; it then lands on the older neighbour.

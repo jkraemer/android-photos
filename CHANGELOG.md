@@ -9,12 +9,12 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 - "Recognise text" in a photo's info panel reads the text in the photo
   and shows it there to select or copy. Phone numbers open the dialer,
   email addresses the mail app, links the browser. Recognition runs on the
-  phone with ML Kit (Latin script); ML Kit's own upload of usage
-  statistics is blocked.
+  phone with ML Kit (Latin script); none of ML Kit's usage statistics
+  leave the phone.
 
 ### Changed
 
-- The APK now runs on 64-bit ARM phones only.
+- The APK now runs on 64-bit ARM phones only, and is smaller (about 18 MB).
 
 ## [0.1.0] - 2026-10-27
 
