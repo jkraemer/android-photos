@@ -11,7 +11,7 @@ import java.io.File
  */
 class Tessdata(private val assets: AssetManager, private val dir: File, private val appUpdatedAt: Long) {
     /** Makes sure every model is in `dir/tessdata/`; returns [dir], the path Tesseract's init wants. */
-    fun install(): File {
+    fun install(): File = synchronized(installing) {
         val target = File(dir, "tessdata").apply { mkdirs() }
         for (language in LANGUAGES.split('+')) {
             val name = "$language.traineddata"
@@ -24,10 +24,14 @@ class Tessdata(private val assets: AssetManager, private val dir: File, private 
                 check(partial.renameTo(file)) { "could not move $partial to $file" }
             }
         }
-        return dir
+        dir
     }
 
     companion object {
         const val LANGUAGES = "deu+eng"
+
+        // Process-wide: each activity has its own instance, and two copies of
+        // one model would trip over each other's temporary file.
+        private val installing = Any()
     }
 }

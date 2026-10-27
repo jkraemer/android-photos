@@ -1,6 +1,8 @@
 package net.jkraemer.photos.media
 
 import java.io.File
+import java.security.MessageDigest
+import kotlin.concurrent.thread
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -36,6 +38,23 @@ class TessdataTest {
         Tessdata(assets, tmp.root, appUpdatedAt = 0).install()
         assertEquals(8_628_461L, model("deu").length())
     }
+
+    @Test fun `two installs at once both succeed and leave intact models`() {
+        // Two activities' recognisers (before and after a rotation) on the first run.
+        repeat(3) {
+            tmp.root.listFiles()!!.forEach { it.deleteRecursively() }
+            val failures = mutableListOf<Throwable>()
+            List(2) {
+                thread { runCatching { Tessdata(assets, tmp.root, appUpdatedAt = 0).install() }.onFailure { synchronized(failures) { failures += it } } }
+            }.forEach { it.join() }
+            assertEquals(emptyList<Throwable>(), failures)
+            assertEquals("8407331d6aa0229dc927685c01a7938fc5a641d1a9524f74838cdac599f0d06e", sha256(model("deu")))
+            assertEquals("8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba", sha256(model("eng")))
+        }
+    }
+
+    private fun sha256(file: File) =
+        MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
 
     @Test fun `replaces a model older than the app`() {
         Tessdata(assets, tmp.root, appUpdatedAt = 0).install()

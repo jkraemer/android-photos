@@ -8,8 +8,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import net.jkraemer.photos.core.MediaItem
 import net.jkraemer.photos.core.cleanRecognisedText
@@ -26,11 +24,8 @@ private const val LONG_EDGE = 3000
 
 /** Tesseract on the German and English models; runs off the main thread and stops when cancelled. */
 class TesseractTextRecognizer(private val resolver: ContentResolver, private val tessdata: Tessdata) : TextRecognizer {
-    // Two runs at once must not copy the models over each other.
-    private val installing = Mutex()
-
     override suspend fun recognise(item: MediaItem): String = withContext(Dispatchers.Default) {
-        val dir = installing.withLock { tessdata.install() }
+        val dir = tessdata.install()
         val bitmap = decode(item)
         val api = TessBaseAPI()
         try {
