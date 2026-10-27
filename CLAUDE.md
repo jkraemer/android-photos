@@ -71,8 +71,11 @@ produces an unsigned APK.
   `FIREBASE_ML_SDK` events through Google DataTransport to
   `firebaselogging.googleapis.com`, with no opt-out. `AndroidManifest.xml`
   removes the CCT backend meta-data, `JobInfoSchedulerService`,
-  `AlarmManagerSchedulerBroadcastReceiver` and the `ACCESS_NETWORK_STATE`/
-  `WAKE_LOCK` permissions; `TelemetryTest` pins each. After an ML Kit
+  `AlarmManagerSchedulerBroadcastReceiver`; `TelemetryTest` allowlists the
+  merged manifest's services, receivers and providers, so a new one fails
+  until reviewed. ML Kit also reports each run to Play services over IPC
+  (`TelemetryLogging`, "mlkit:vision"); GrapheneOS makes Play services
+  force-queryable, so the manifest cannot stop that. After an ML Kit
   upgrade, check on the device: `setprop log.tag.TransportRuntime VERBOSE`,
   run OCR, expect "Transport backend 'cct' is not registered" and no
   DataTransport job in `dumpsys jobscheduler`.

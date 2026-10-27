@@ -39,8 +39,9 @@ photo and shows it there: select and copy parts, copy all of it, or tap a
 phone number, email address or link to open the dialer, mail app or browser.
 Recognition runs on the phone, also offline, with Google's ML Kit (Latin
 script, so German and English among others). ML Kit would upload usage
-statistics to Google; the app strips that upload path, so nothing leaves the
-phone.
+statistics to Google itself; the app strips that upload path. With Google
+Play services installed, ML Kit still tells Play services about each run
+(API, result code, timing; not the photo or its text), which may pass that on.
 
 ## Requirements
 
