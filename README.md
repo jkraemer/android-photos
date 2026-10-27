@@ -34,6 +34,11 @@ opens no connections; it holds the internet permission only because the
 system geocoder requires it, so turning the app's network access off just
 leaves coordinates.
 
+**Text** — in a photo's info panel, "Recognise text" reads the text in the
+photo (German and English, with Tesseract, on the phone) and shows it there:
+select and copy parts, copy all of it, or tap a phone number, email address
+or link to open the dialer, mail app or browser.
+
 ## Requirements
 
 - Android 15+ (minSdk 35)
@@ -41,11 +46,14 @@ leaves coordinates.
   app asks you to change that in its settings.
 - Access to photo locations, asked for when you first open the info panel;
   without it the panel shows everything but the place.
+- A 64-bit ARM phone (`arm64-v8a`): the APK carries Tesseract's native code for nothing else.
 - Developed against a Pixel on GrapheneOS with Google Camera.
 
 ## Building
 
-JDK 21 and the Android SDK, then:
+JDK 21 and the Android SDK, then (the first build downloads Tesseract's
+German and English models, about 24 MB, from `tesseract-ocr/tessdata_best`
+at a pinned commit and checks their SHA-256 sums):
 
 ```sh
 ./gradlew assembleDebug
@@ -71,12 +79,13 @@ publishes a release with that changelog section as its notes.
 - **core** — plain Kotlin, everything that decides: timeline order, grid
   entries and headers per zoom level, date labels, which item the floating
   date names, the film-strip window, where the detail view lands when its
-  item disappears, and how the info panel words a photo's metadata. Fully
+  item disappears, how the info panel words a photo's metadata, and which
+  parts of recognised text are phone numbers, emails or links. Fully
   testable on the JVM.
 - **app** — everything that touches the system: the MediaStore query and
   observer, thumbnails through MediaStore's own cache, EXIF and video
-  metadata, the geocoder, share, trash and map intents, the permission gate,
-  and the Compose screens.
+  metadata, the geocoder, text recognition with Tesseract, share, trash, map
+  and link intents, the permission gate, and the Compose screens.
 
 ## Verifying releases
 

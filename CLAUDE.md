@@ -33,13 +33,15 @@ produces an unsigned APK.
 
 - **`core`** (plain Kotlin/JVM) decides: `TimelineGrid` (entries and headers
   per `ZoomLevel`), `DateLabels`, `newestFullyVisible`, `stripScrollFor`,
-  `centredItem`, `neighbourAfterRemoval`, `MediaAccess`, `LocationAsk`;
+  `centredItem`, `neighbourAfterRemoval`, `MediaAccess`, `LocationAsk`,
+  `findLinks`/`cleanRecognisedText`/`scaledToLongEdge` (recognised text);
   `PhotoInfo.kt` holds the info panel's model and wording (`MediaMetadata`,
   `InfoFormat`, `placeName`, `geoUri`, `panelOpenAfterDrag`).
 - **`app`** touches the system: `MediaStoreRepository` (query + observer
   flow), `MediaThumbnailFetcher` (Coil, via `ContentResolver.loadThumbnail`),
   `MediaActions` (share, trash request, map intent), `MediaStoreMetadataSource`
   (MediaStore + EXIF + video container), `GeocoderPlaceNames`,
+  `Tessdata` (models from assets to files), `TesseractTextRecognizer`,
   `PermissionGate`, `GridScreen`, `DetailScreen`, `FilmStrip`, `InfoPanel`,
   `VideoPage`. `MainActivity` is the composition
   root; the detail view overlays the grid so the grid keeps its scroll state.
@@ -65,6 +67,16 @@ produces an unsigned APK.
 - **Locations need `ACCESS_MEDIA_LOCATION` and `setRequireOriginal`.**
   Without both, Android strips GPS from EXIF and video metadata; a revoked
   permission makes the original read throw `SecurityException`.
+- **Tesseract's models are downloaded at build time, not committed.**
+  `downloadTessdata` in `app/build.gradle.kts` fetches `deu`/`eng` from
+  `tessdata_best` at a pinned commit, checks SHA-256, and adds them as
+  generated assets (stored uncompressed). Tesseract reads only files, so
+  `Tessdata` copies them to `filesDir` on first use.
+- **JitPack serves Tesseract4Android and nothing else** (`exclusiveContent`
+  in `settings.gradle.kts`). The APK is `arm64-v8a` only.
+- **Only `getHOCRText` can be stopped.** `TessBaseAPI.stop()` does not
+  interrupt `getUTF8Text`, so the recogniser runs `getHOCRText` and reads
+  the UTF-8 result afterwards; `recycle()` waits for the native call.
 - **The detail view follows its item by id.** Other apps (Immich freeing
   space) remove items while it is open; it then lands on the older neighbour.
 

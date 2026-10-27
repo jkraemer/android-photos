@@ -4,6 +4,17 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Added
+
+- "Recognise text" in a photo's info panel reads the text in the photo
+  (German and English, on the phone with Tesseract) and shows it there to
+  select or copy. Phone numbers open the dialer, email addresses the mail
+  app, links the browser.
+
+### Changed
+
+- The APK now runs on 64-bit ARM phones only.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
