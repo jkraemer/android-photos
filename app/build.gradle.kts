@@ -110,6 +110,7 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.exifinterface)
     implementation(libs.tesseract4android)
+    implementation(libs.mlkit.text.recognition)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
