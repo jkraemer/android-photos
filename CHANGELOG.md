@@ -4,6 +4,8 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-27
+
 ### Added
 
 - Library grid of the camera folder (`DCIM/Camera/`) only, photos and videos,
