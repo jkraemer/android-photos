@@ -1,5 +1,6 @@
 package net.jkraemer.photos.ui.detail
 
+import android.view.View
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,11 +43,12 @@ import net.jkraemer.photos.media.thumbnailSizePx
 
 /**
  * A video in the detail view: its poster frame with a play button until
- * played, then an inline player with sound and the standard controls. The
- * player is released as soon as the page stops being the current one.
+ * played, then an inline player with sound and the standard controls. A tap
+ * toggles [uiVisible], which the player's controls follow. The player is
+ * released as soon as the page stops being the current one.
  */
 @Composable
-fun VideoPage(item: MediaItem, isCurrentPage: Boolean, onTap: () -> Unit) {
+fun VideoPage(item: MediaItem, isCurrentPage: Boolean, uiVisible: Boolean, onUiVisibleChange: (Boolean) -> Unit) {
     var playing by remember(item.id) { mutableStateOf(false) }
     LaunchedEffect(isCurrentPage) {
         if (!isCurrentPage) playing = false
@@ -60,7 +63,12 @@ fun VideoPage(item: MediaItem, isCurrentPage: Boolean, onTap: () -> Unit) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    BoxWithConstraints(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onTap)) {
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .clickable(interactionSource = null, indication = null) { onUiVisibleChange(!uiVisible) }
+            .testTag("video-page"),
+    ) {
         if (playing) {
             val context = LocalContext.current
             val player = remember {
@@ -82,8 +90,25 @@ fun VideoPage(item: MediaItem, isCurrentPage: Boolean, onTap: () -> Unit) {
                     }
             }
             DisposableEffect(player) { onDispose { player.release() } }
+            // The player takes every tap on itself, so its controls and the
+            // detail view's own UI show and hide as one: a tap or the
+            // controls' own timeout reports here, and the shared state drives
+            // the controls back.
+            val shownNow by rememberUpdatedState(uiVisible)
+            val reportShown by rememberUpdatedState(onUiVisibleChange)
             AndroidView(
-                factory = { PlayerView(it).apply { this.player = player } },
+                factory = {
+                    PlayerView(it).apply {
+                        this.player = player
+                        setControllerVisibilityListener(
+                            PlayerView.ControllerVisibilityListener { visibility ->
+                                val shown = visibility == View.VISIBLE
+                                if (shown != shownNow) reportShown(shown)
+                            },
+                        )
+                    }
+                },
+                update = { view -> if (uiVisible) view.showController() else view.hideController() },
                 modifier = Modifier.fillMaxSize().testTag("video-player"),
             )
         } else {
