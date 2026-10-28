@@ -16,6 +16,11 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 
 - The APK now runs on 64-bit ARM phones only, and is smaller (about 18 MB).
 
+### Fixed
+
+- A tap on a playing video hides the top bar and film strip along with the
+  player's controls, as a tap on a photo does; they come back together too.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added

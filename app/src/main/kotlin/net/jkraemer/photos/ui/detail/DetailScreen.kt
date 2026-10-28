@@ -315,7 +315,7 @@ fun DetailScreen(
                             }
                         },
                     )
-                    MediaKind.VIDEO -> VideoPage(item, isCurrent, onTap = { uiVisible = !uiVisible })
+                    MediaKind.VIDEO -> VideoPage(item, isCurrent, uiVisible, onUiVisibleChange = { uiVisible = it })
                 }
             }
         }
