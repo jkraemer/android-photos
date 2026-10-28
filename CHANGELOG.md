@@ -4,6 +4,8 @@ User-visible changes, in the spirit of [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-28
+
 ### Added
 
 - "Recognise text" in a photo's info panel reads the text in the photo
